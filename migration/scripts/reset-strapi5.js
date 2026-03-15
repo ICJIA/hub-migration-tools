@@ -176,7 +176,7 @@ async function main() {
   console.log(`${GREEN}║         Reset complete — ready for fresh migration       ║${RESET}`);
   console.log(`${GREEN}╚══════════════════════════════════════════════════════════╝${RESET}`);
   console.log('');
-  console.log('Next steps:');
+  console.log('Before continuing:');
   console.log('');
   console.log(`  ${CYAN}1.${RESET} Start Strapi 5 (it recreates the DB from existing schema files):`);
   console.log(`     ${CYAN}cd ${strapi5Dir} && npm run develop${RESET}`);
@@ -185,17 +185,17 @@ async function main() {
   console.log('');
   console.log(`  ${CYAN}3.${RESET} Create API token: Settings → API Tokens → Full Access → Save & copy`);
   console.log('');
-  console.log(`  ${CYAN}4.${RESET} Set the token:`);
-  console.log(`     ${CYAN}pnpm set-strapi5${RESET}`);
+
+  await waitForEnter(`${YELLOW}Press Enter when Strapi 5 is running with a new admin + API token...${RESET} `);
+
+  // Chain into set-strapi5 (which chains into phase01)
   console.log('');
-  console.log(`  ${CYAN}5.${RESET} Run the full migration:`);
-  console.log(`     ${CYAN}pnpm migrate:phase01${RESET}`);
-  console.log(`     ${CYAN}pnpm migrate:phase02${RESET}`);
-  console.log(`     ${CYAN}pnpm migrate:phase03${RESET}`);
-  console.log(`     ${CYAN}pnpm migrate:phase04${RESET}`);
-  console.log(`     ${CYAN}pnpm migrate:phase05${RESET}`);
-  console.log(`     ${CYAN}pnpm migrate:phase06${RESET}`);
-  console.log('');
+  const { spawn } = await import('child_process');
+  const child = spawn('node', ['migration/scripts/set-strapi5-url.js'], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
+  child.on('close', (code) => process.exit(code ?? 0));
 }
 
 main().catch((err) => {
