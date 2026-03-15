@@ -1,5 +1,7 @@
 # ResearchHub CMS Migration (Strapi 3 → Strapi 5)
 
+A complete, automated migration tool for converting a legacy Strapi 3 (MongoDB) content management system to a current Strapi 5 (SQLite) instance. Performs a full API-to-API transfer — extracting all content, media, and relations from Strapi 3, transforming and loading them into Strapi 5, then running automated validation and field-by-field parity checks. The end result is a fully migrated, verified Strapi 5 database running on SQLite.
+
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
