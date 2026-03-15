@@ -9,6 +9,12 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [0.9.0] - 2026-03-15
+
+### Added
+- MIT LICENSE file
+- README: Platform Support table (macOS, Linux/Ubuntu, Windows via WSL2)
+
 ## [0.8.3] - 2026-03-15
 
 ### Added

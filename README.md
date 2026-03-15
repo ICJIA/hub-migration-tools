@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 0.8.3 ([Changelog](CHANGELOG.md))
+**Version:** 0.9.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -80,6 +80,14 @@ The actual Strapi 3 model schemas are stored in [`schemas/`](schemas/) for refer
 - [`app.settings.json`](schemas/app.settings.json) — 12 scalar fields, 2 m2m relations (both dominant)
 
 ## Getting Started
+
+### Platform Support
+
+| Platform | Status | Notes |
+|---|---|---|
+| **macOS** | Supported | Primary development platform. Tested on macOS Tahoe (Darwin 25.x). |
+| **Linux** | Supported | Ubuntu preferred. Any distro with Node.js 18+ and pnpm should work. |
+| **Windows** | WSL2 required | Native Windows is not supported. Install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) with Ubuntu and run the migration from the Linux environment. |
 
 ### Prerequisites
 
@@ -233,4 +241,4 @@ For the full risk register with detailed recovery procedures, see [Doc 00 — Ma
 
 ## License
 
-Copyright (c) 2026 Illinois Criminal Justice Information Authority (ICJIA)
+[MIT License](LICENSE) - Copyright (c) 2026 Illinois Criminal Justice Information Authority (ICJIA)
