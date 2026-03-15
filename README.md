@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 1.0.0 ([Changelog](CHANGELOG.md))
+**Version:** 2.0.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -181,46 +181,67 @@ node migration/scripts/02-verify.js     # verify counts and data integrity
 
 > **Note:** All generated data in `migration/data/` and `migration/output/` is gitignored. It stays on the developer's local machine only.
 
-### Phase 3: Base64 Extraction & Media Migration *(not yet implemented)*
+### Phase 3: Base64 Extraction & Media Migration
 
 Extracts Base64 images from article `splash`/`thumbnail`/`markdown` and app `image` fields, decodes them to files, uploads to Strapi 5's media library, and rewrites content references. Also downloads and re-uploads `mainfile`/`extrafile`/`datafile` media.
 
+**Recommended — run the interactive orchestrator:**
+
 ```bash
-pnpm migrate:phase03          # orchestrator (when implemented)
-node migration/scripts/03a-scan-base64.js       # scan for Base64 images
+pnpm migrate:phase03
+```
+
+**Or run each step individually:**
+
+```bash
+node migration/scripts/03a-scan-base64.js       # scan for Base64 images, produce manifest
 node migration/scripts/03b-decode-base64.js      # decode to binary files
-node migration/scripts/03c-upload-media.js       # upload to Strapi 5
-node migration/scripts/03d-rewrite-content.js    # replace Base64 with media URLs
+node migration/scripts/03c-upload-media.js       # upload to Strapi 5 media library
+node migration/scripts/03d-rewrite-content.js    # replace Base64 with media URLs in articles
 node migration/scripts/03e-transform.js          # transform datasets + apps, migrate upload-plugin files
 node migration/scripts/03-verify.js              # verify zero Base64 remnants, all media accessible
 ```
 
-**What it will produce:** decoded images in `migration/data/media/`, media ID map, and transformed content in `migration/data/transformed/`. See [Doc 03](docs/researchhub-migration-doc03.md) for details.
+**What it produces:** decoded images in `migration/data/media/`, media ID map in `migration/data/maps/media.json`, and transformed content in `migration/data/transformed/`. See [Doc 03](docs/researchhub-migration-doc03.md) for details.
 
-### Phase 4: Data Loading & Timestamp Restoration *(not yet implemented)*
+### Phase 4: Data Loading & Timestamp Restoration
 
 Loads all transformed content into Strapi 5 via REST API in dependency order (datasets → apps → articles), links the m2m relation triangle, and restores original `createdAt`/`updatedAt` timestamps via direct SQLite updates.
 
+**Recommended — run the interactive orchestrator:**
+
 ```bash
-pnpm migrate:phase04          # orchestrator (when implemented)
-node migration/scripts/04-load.js               # load all content types
-node migration/scripts/04b-link-relations.js     # link relation triangle
-node migration/scripts/04c-fix-timestamps.js     # restore original timestamps
+pnpm migrate:phase04
+```
+
+**Or run each step individually:**
+
+```bash
+node migration/scripts/04-load.js               # load content: datasets → apps → articles
+node migration/scripts/04b-link-relations.js     # link relation triangle from dominant sides
+node migration/scripts/04c-fix-timestamps.js     # restore original timestamps (stop Strapi 5 first!)
 node migration/scripts/04-verify.js              # verify counts, relations, timestamps
 ```
 
-**What it will produce:** fully populated Strapi 5 with all content, relations, and correct timestamps. ID maps in `migration/data/maps/`. See [Doc 04](docs/researchhub-migration-doc04.md) for details.
+**What it produces:** fully populated Strapi 5 with all content, relations, and correct timestamps. ID maps in `migration/data/maps/`. See [Doc 04](docs/researchhub-migration-doc04.md) for details.
 
-### Phase 5: Validation & Reconciliation *(not yet implemented)*
+### Phase 5: Validation & Reconciliation
 
 Runs 10 automated checks comparing Strapi 3 and Strapi 5 end-to-end: record counts, legacy ID coverage, zero Base64 remnants, media accessibility, relation integrity (all three m2m sets), timestamp preservation, content integrity spot checks, and duplicate detection.
 
+**Recommended — run the interactive orchestrator:**
+
 ```bash
-pnpm migrate:phase05          # orchestrator (when implemented)
+pnpm migrate:phase05
+```
+
+**Or run directly:**
+
+```bash
 node migration/scripts/05-validate.js           # run all 10 validation checks
 ```
 
-**What it will produce:** `migration/data/validation-report.json` with pass/fail per check and a console summary. See [Doc 05](docs/researchhub-migration-doc05.md) for details.
+**What it produces:** `migration/data/validation-report.json` with pass/fail per check and a console summary. See [Doc 05](docs/researchhub-migration-doc05.md) for details.
 
 ## Risks and Mitigations
 

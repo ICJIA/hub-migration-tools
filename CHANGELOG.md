@@ -20,6 +20,42 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.0.0] - 2026-03-15
+
+### Added
+- **Phase 3 implementation: Base64 extraction & media migration**
+  - `migration/lib/base64-scanner.js` — detects Base64 in string fields and markdown
+  - `migration/lib/base64-decoder.js` — decodes Base64 to binary with magic byte validation
+  - `migration/lib/markdown-rewriter.js` — replaces Base64 refs with upload URLs
+  - `migration/scripts/03a-scan-base64.js` — scans articles + apps, produces manifest
+  - `migration/scripts/03b-decode-base64.js` — decodes Base64 to image files
+  - `migration/scripts/03c-upload-media.js` — uploads to Strapi 5 media library
+  - `migration/scripts/03d-rewrite-content.js` — rewrites articles with media IDs/URLs
+  - `migration/scripts/03e-transform.js` — transforms datasets + apps, migrates upload-plugin files
+  - `migration/scripts/03-verify.js` — verifies zero remnants, media accessible
+  - `migration/scripts/03-run-phase.js` — interactive orchestrator
+- **Phase 4 implementation: data loading & timestamp restoration**
+  - `migration/lib/rest-client.js` — REST client with auth, timeout, upload support
+  - `migration/scripts/04-load.js` — loads content: datasets → apps → articles
+  - `migration/scripts/04b-link-relations.js` — links relation triangle from dominant sides
+  - `migration/scripts/04c-fix-timestamps.js` — restores timestamps via SQLite
+  - `migration/scripts/04-verify.js` — post-load verification
+  - `migration/scripts/04-run-phase.js` — interactive orchestrator
+- **Phase 5 implementation: validation & reconciliation**
+  - `migration/scripts/05-validate.js` — 10 automated checks (counts, legacy IDs, Base64, media, relations, timestamps, content integrity, duplicates)
+  - `migration/scripts/05-run-phase.js` — orchestrator with manual QA sign-off checklist
+- `better-sqlite3` dependency for timestamp restoration and validation
+- `pnpm migrate:phase03`, `pnpm migrate:phase04`, `pnpm migrate:phase05` shortcuts
+- `pnpm validate` shortcut for standalone validation
+
+### Changed
+- All generated migration data now gitignored (`migration/data/`, `migration/output/`, `migration/config/field-map.json`)
+
+### Fixed
+- GraphQL client warns when sending token over plaintext HTTP to non-localhost
+- Extraction has MAX_RECORDS (10000) safety valve against infinite pagination
+- Extraction now uses `requestDelayMs` between pagination requests
+
 ## [1.0.0] - 2026-03-15
 
 ### Added

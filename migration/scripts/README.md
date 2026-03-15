@@ -188,44 +188,80 @@ node migration/scripts/02-verify.js
 
 ---
 
-## Phase 3: Base64 Extraction & Media Migration *(not yet implemented)*
+## Phase 3: Base64 Extraction & Media Migration
 
-| Script | Purpose |
+### `03-run-phase.js` (recommended)
+
+**What it does:** Orchestrates all Phase 3 steps: scan → decode → upload → rewrite → transform → verify.
+
+```bash
+node migration/scripts/03-run-phase.js    # or: pnpm migrate:phase03
+```
+
+### Individual scripts
+
+| Script | What it does |
 |---|---|
-| `03-run-phase.js` | Orchestrator — runs all Phase 3 steps with prompts |
-| `03a-scan-base64.js` | Scan articles and apps for Base64 images, produce manifest |
-| `03b-decode-base64.js` | Decode Base64 strings to binary image files |
-| `03c-upload-media.js` | Upload decoded images to Strapi 5 media library |
-| `03d-rewrite-content.js` | Replace Base64 in articles with media URLs/IDs |
-| `03e-transform.js` | Transform datasets + apps, download/reupload mainfile/extrafile/datafile |
-| `03-verify.js` | Verify zero Base64 remnants, all media accessible, all fields correct |
-
-**Produces:** `migration/data/media/`, `migration/data/maps/media.json`, `migration/data/transformed/`
+| `03a-scan-base64.js` | Scans article `splash`/`thumbnail`/`images`/`markdown` and app `image` for Base64 data. Produces `migration/data/media/manifest.json` |
+| `03b-decode-base64.js` | Decodes each Base64 entry to binary files in `migration/data/media/files/`. Validates magic bytes |
+| `03c-upload-media.js` | Uploads decoded files to Strapi 5 `/api/upload`. Idempotent (skips existing). Saves `migration/data/maps/media.json` |
+| `03d-rewrite-content.js` | Rewrites articles: splash/thumbnail → media IDs, markdown inline images → URLs. Saves `migration/data/transformed/articles.json` |
+| `03e-transform.js` | Downloads/re-uploads dataset `datafile` + article `mainfile`/`extrafile`. Transforms datasets + apps. Saves `datasets.json` + `apps.json` |
+| `03-verify.js` | Verifies zero Base64 remnants, all media accessible, field parity. Exit 0/1 |
 
 ---
 
-## Phase 4: Data Loading & Timestamp Restoration *(not yet implemented)*
+## Phase 4: Data Loading & Timestamp Restoration
 
-| Script | Purpose |
+### `04-run-phase.js` (recommended)
+
+**What it does:** Orchestrates: load → link relations → (stop Strapi 5) → fix timestamps → (restart) → verify.
+
+```bash
+node migration/scripts/04-run-phase.js    # or: pnpm migrate:phase04
+```
+
+### Individual scripts
+
+| Script | What it does |
 |---|---|
-| `04-run-phase.js` | Orchestrator — runs all Phase 4 steps with prompts |
-| `04-load.js` | Load content into Strapi 5 in order: datasets → apps → articles |
-| `04b-link-relations.js` | Link the m2m relation triangle (article→datasets, app→articles, app→datasets) |
-| `04c-fix-timestamps.js` | Restore original createdAt/updatedAt via direct SQLite updates |
-| `04-verify.js` | Verify counts, relations, timestamps, no duplicates |
-
-**Produces:** populated Strapi 5, ID maps in `migration/data/maps/`
+| `04-load.js` | Loads content in order: datasets → apps → articles. Checks legacyId for duplicates. Saves ID maps to `migration/data/maps/` |
+| `04b-link-relations.js` | Links relation triangle: article→datasets (article dominant), app→articles + app→datasets (app dominant) |
+| `04c-fix-timestamps.js` | Restores `createdAt`/`updatedAt` via direct SQLite UPDATE. Strapi 5 must be stopped first |
+| `04-verify.js` | Verifies counts, relations (all 3 m2m sets), timestamps, no duplicates. Exit 0/1 |
 
 ---
 
-## Phase 5: Validation & Reconciliation *(not yet implemented)*
+## Phase 5: Validation & Reconciliation
 
-| Script | Purpose |
-|---|---|
-| `05-run-phase.js` | Orchestrator — runs validation with summary |
-| `05-validate.js` | 10 automated checks: counts, legacy IDs, Base64, media, relations, timestamps, content, duplicates |
+### `05-run-phase.js` (recommended)
 
-**Produces:** `migration/data/validation-report.json`
+**What it does:** Runs end-to-end validation and prints manual QA sign-off checklist on success.
+
+```bash
+node migration/scripts/05-run-phase.js    # or: pnpm migrate:phase05
+```
+
+### `05-validate.js`
+
+**What it does:** Runs 10 automated checks comparing Strapi 3 and Strapi 5:
+
+1. Record counts match
+2. Legacy ID coverage (every Strapi 3 ID → exactly one Strapi 5 record)
+3. Zero Base64 remnants in all text fields
+4. Image/media migration (splash, thumbnail, mainfile, extrafile, app image)
+5. Dataset file migration (datafile)
+6. Media accessibility (HEAD request every URL)
+7. Relation integrity (all 3 m2m sets)
+8. Timestamp preservation (±1 second tolerance)
+9. Content integrity (random 10% spot check against Strapi 3)
+10. No duplicate records
+
+**Produces:** `migration/data/validation-report.json`. Exit 0 if all pass, 1 if any fail.
+
+```bash
+node migration/scripts/05-validate.js    # or: pnpm validate
+```
 
 ---
 
