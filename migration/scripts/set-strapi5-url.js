@@ -150,8 +150,19 @@ async function main() {
     console.log(`  ${YELLOW}Check the URL and try again. The config has been saved — you can edit config.js manually.${RESET}`);
   }
 
-  console.log(`\n${GREEN}Done.${RESET} All migration scripts will now use the new Strapi 5 URL.`);
-  console.log('');
+  console.log(`\n${GREEN}Done.${RESET} All migration scripts will now use the new Strapi 5 URL.\n`);
+
+  // Offer to start Phase 1
+  const startPhase1 = await prompt('Start Phase 1 (Schema Setup)? [Y/n]', 'y');
+  if (startPhase1 === '' || startPhase1.toLowerCase() === 'y' || startPhase1.toLowerCase() === 'yes') {
+    console.log('');
+    const { spawn } = await import('child_process');
+    const child = spawn('node', ['migration/scripts/01-run-phase.js'], {
+      cwd: ROOT,
+      stdio: 'inherit',
+    });
+    child.on('close', (code) => process.exit(code ?? 0));
+  }
 }
 
 main().catch((err) => {
