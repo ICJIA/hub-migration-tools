@@ -148,11 +148,65 @@ node migration/scripts/01c-verify-schemas.js
 
 ---
 
-## Phase 2–5: Not Yet Implemented
+## Phase 2: Data Extraction *(not yet implemented)*
 
-Scripts for phases 2–5 will be added here as they are implemented. Each will follow the same pattern:
-- Reads configuration from `config.js` at the project root
-- Prints configuration at startup
-- Shows red error messages for failures
-- Uses colored console output for pass/fail status
-- Is independently re-runnable (idempotent where possible)
+| Script | Purpose |
+|---|---|
+| `02-run-phase.js` | Orchestrator — runs all Phase 2 steps with prompts |
+| `02-extract.js` | Pull all content from Strapi 3 via GraphQL, save as local JSON |
+| `02-verify.js` | Verify record counts match Strapi 3 REST endpoints, check data integrity |
+
+**Produces:** `migration/data/raw/articles.json`, `datasets.json`, `apps.json`, extraction manifest
+
+---
+
+## Phase 3: Base64 Extraction & Media Migration *(not yet implemented)*
+
+| Script | Purpose |
+|---|---|
+| `03-run-phase.js` | Orchestrator — runs all Phase 3 steps with prompts |
+| `03a-scan-base64.js` | Scan articles and apps for Base64 images, produce manifest |
+| `03b-decode-base64.js` | Decode Base64 strings to binary image files |
+| `03c-upload-media.js` | Upload decoded images to Strapi 5 media library |
+| `03d-rewrite-content.js` | Replace Base64 in articles with media URLs/IDs |
+| `03e-transform.js` | Transform datasets + apps, download/reupload mainfile/extrafile/datafile |
+| `03-verify.js` | Verify zero Base64 remnants, all media accessible, all fields correct |
+
+**Produces:** `migration/data/media/`, `migration/data/maps/media.json`, `migration/data/transformed/`
+
+---
+
+## Phase 4: Data Loading & Timestamp Restoration *(not yet implemented)*
+
+| Script | Purpose |
+|---|---|
+| `04-run-phase.js` | Orchestrator — runs all Phase 4 steps with prompts |
+| `04-load.js` | Load content into Strapi 5 in order: datasets → apps → articles |
+| `04b-link-relations.js` | Link the m2m relation triangle (article→datasets, app→articles, app→datasets) |
+| `04c-fix-timestamps.js` | Restore original createdAt/updatedAt via direct SQLite updates |
+| `04-verify.js` | Verify counts, relations, timestamps, no duplicates |
+
+**Produces:** populated Strapi 5, ID maps in `migration/data/maps/`
+
+---
+
+## Phase 5: Validation & Reconciliation *(not yet implemented)*
+
+| Script | Purpose |
+|---|---|
+| `05-run-phase.js` | Orchestrator — runs validation with summary |
+| `05-validate.js` | 10 automated checks: counts, legacy IDs, Base64, media, relations, timestamps, content, duplicates |
+
+**Produces:** `migration/data/validation-report.json`
+
+---
+
+## Conventions
+
+All scripts follow the same patterns:
+- Read configuration from `config.js` at the project root
+- Print configuration at startup so you can verify targets
+- Show red ANSI error messages for failures
+- Use colored console output for pass/fail status
+- Are independently re-runnable (idempotent where possible)
+- Include JSDoc on all exports

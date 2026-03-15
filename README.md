@@ -145,9 +145,58 @@ node migration/scripts/01c-verify-schemas.js
 - Route, controller, and service boilerplate for each content type
 - Field mapping reference at `migration/config/field-map.json`
 
-### Phase 2–5: Not Yet Implemented
+### Phase 2: Data Extraction *(not yet implemented)*
 
-Scripts for subsequent phases will be added as they are implemented. Each phase has a design doc in `docs/` and will follow the same patterns (config at startup, colored output, idempotent operations).
+Pulls all content from Strapi 3 via GraphQL and stores it as local JSON files. After this phase, Strapi 3 is no longer needed — all data exists locally.
+
+```bash
+pnpm migrate:phase02          # orchestrator (when implemented)
+node migration/scripts/02-extract.js    # extract all content types
+node migration/scripts/02-verify.js     # verify counts and data integrity
+```
+
+**What it will produce:** `migration/data/raw/articles.json`, `datasets.json`, `apps.json`, and an extraction manifest. See [Doc 02](docs/researchhub-migration-doc02.md) for details.
+
+### Phase 3: Base64 Extraction & Media Migration *(not yet implemented)*
+
+Extracts Base64 images from article `splash`/`thumbnail`/`markdown` and app `image` fields, decodes them to files, uploads to Strapi 5's media library, and rewrites content references. Also downloads and re-uploads `mainfile`/`extrafile`/`datafile` media.
+
+```bash
+pnpm migrate:phase03          # orchestrator (when implemented)
+node migration/scripts/03a-scan-base64.js       # scan for Base64 images
+node migration/scripts/03b-decode-base64.js      # decode to binary files
+node migration/scripts/03c-upload-media.js       # upload to Strapi 5
+node migration/scripts/03d-rewrite-content.js    # replace Base64 with media URLs
+node migration/scripts/03e-transform.js          # transform datasets + apps, migrate upload-plugin files
+node migration/scripts/03-verify.js              # verify zero Base64 remnants, all media accessible
+```
+
+**What it will produce:** decoded images in `migration/data/media/`, media ID map, and transformed content in `migration/data/transformed/`. See [Doc 03](docs/researchhub-migration-doc03.md) for details.
+
+### Phase 4: Data Loading & Timestamp Restoration *(not yet implemented)*
+
+Loads all transformed content into Strapi 5 via REST API in dependency order (datasets → apps → articles), links the m2m relation triangle, and restores original `createdAt`/`updatedAt` timestamps via direct SQLite updates.
+
+```bash
+pnpm migrate:phase04          # orchestrator (when implemented)
+node migration/scripts/04-load.js               # load all content types
+node migration/scripts/04b-link-relations.js     # link relation triangle
+node migration/scripts/04c-fix-timestamps.js     # restore original timestamps
+node migration/scripts/04-verify.js              # verify counts, relations, timestamps
+```
+
+**What it will produce:** fully populated Strapi 5 with all content, relations, and correct timestamps. ID maps in `migration/data/maps/`. See [Doc 04](docs/researchhub-migration-doc04.md) for details.
+
+### Phase 5: Validation & Reconciliation *(not yet implemented)*
+
+Runs 10 automated checks comparing Strapi 3 and Strapi 5 end-to-end: record counts, legacy ID coverage, zero Base64 remnants, media accessibility, relation integrity (all three m2m sets), timestamp preservation, content integrity spot checks, and duplicate detection.
+
+```bash
+pnpm migrate:phase05          # orchestrator (when implemented)
+node migration/scripts/05-validate.js           # run all 10 validation checks
+```
+
+**What it will produce:** `migration/data/validation-report.json` with pass/fail per check and a console summary. See [Doc 05](docs/researchhub-migration-doc05.md) for details.
 
 ## Success Criteria
 
