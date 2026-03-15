@@ -1,6 +1,6 @@
 {
   "name": "hub-cms-migration-2026",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.30.3",
@@ -20,7 +20,9 @@
     "introspect": "node migration/scripts/01a-introspect.js",
     "generate": "node migration/scripts/01b-generate-schemas.js",
     "verify": "node migration/scripts/01c-verify-schemas.js",
-    "validate": "node migration/scripts/05-validate.js"
+    "validate": "node migration/scripts/05-validate.js",
+    "sync": "node migration/scripts/07-sync.js",
+    "set-strapi5": "node migration/scripts/set-strapi5-url.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1"

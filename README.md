@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 2.4.0 ([Changelog](CHANGELOG.md))
+**Version:** 2.5.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -132,6 +132,14 @@ MIGRATION_ENV=prod pnpm migrate:phase02
 ```bash
 export STRAPI5_TOKEN="your-token-here"
 ```
+
+**Or use the interactive config script to set the Strapi 5 URL and token:**
+
+```bash
+pnpm set-strapi5
+```
+
+This prompts for the URL and token, updates `config.js`, and tests connectivity.
 
 Every script prints its configuration at startup so you can verify target URLs before it runs. See [`config.example.js`](config.example.js) for all available settings.
 
@@ -325,6 +333,22 @@ See [Doc 06](docs/researchhub-migration-doc06.md) for details.
 ### Setting Up Strapi 5
 
 For detailed instructions on installing a fresh Strapi 5 instance, configuring PM2, Nginx, and Laravel Forge, see the **[Strapi 5 Setup Guide](docs/STRAPI5-SETUP.md)**.
+
+### Incremental Sync (Catching Up After Initial Migration)
+
+If new content is added to Strapi 3 after the initial migration (e.g., new articles published while Strapi 5 is in dev), run the sync script to catch up without re-doing the full migration:
+
+```bash
+pnpm sync
+```
+
+This single script:
+1. Compares all records in Strapi 3 vs Strapi 5 (by `legacyId`)
+2. **NEW records** — automatically extracts, transforms, uploads media, loads into Strapi 5, and links relations
+3. **UPDATED records** — flags for manual review (does not auto-overwrite)
+4. **DELETED records** — flags records in Strapi 5 that no longer exist in Strapi 3
+
+Safe to run multiple times. Saves a sync report to `migration/data/maps/sync-report.json`.
 
 ## Risks and Mitigations
 

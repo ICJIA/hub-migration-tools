@@ -20,6 +20,18 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.5.0] - 2026-03-15
+
+### Added
+- `migration/scripts/07-sync.js` — incremental sync script that catches up new Strapi 3
+  content without re-running the full migration. Automatically loads new records; flags
+  updated and deleted records for review.
+- `pnpm sync` shortcut
+- `migration/scripts/set-strapi5-url.js` — interactive script to update Strapi 5 URL
+  and token in config.js. Prompts for URL, derives GraphQL URL, updates config, tests connectivity.
+- `pnpm set-strapi5` shortcut
+- README: "Incremental Sync" section explaining usage
+
 ## [2.4.0] - 2026-03-15
 
 ### Added
