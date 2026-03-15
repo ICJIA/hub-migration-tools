@@ -601,6 +601,19 @@ function compareScalar(field, s3Value, s5Value) {
     return { category: 'OK', detail: 'Match (after type coercion)' };
   }
 
+  // Date fields: Strapi 3 returns DateTime (2015-08-18T00:00:00.000Z), Strapi 5 returns Date (2015-08-18)
+  if (s3Norm && s5Norm && typeof s3Norm === 'string' && typeof s5Norm === 'string') {
+    const s3Date = s3Norm.split('T')[0];
+    if (s3Date === s5Norm) {
+      return { category: 'EXPECTED', detail: 'Date format: DateTime → Date (same value)', strapi3: String(s3Norm), strapi5: String(s5Norm) };
+    }
+  }
+
+  // Boolean fields: Strapi 5 defaults null booleans to false
+  if (s3Norm === null && s5Norm === false) {
+    return { category: 'EXPECTED', detail: 'Boolean default: null → false (Strapi 5 defaults unset booleans)', strapi3: 'null', strapi5: 'false' };
+  }
+
   return {
     category: 'ERROR',
     detail: `Value mismatch`,
