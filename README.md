@@ -205,6 +205,21 @@ node migration/scripts/05-validate.js           # run all 10 validation checks
 
 **What it will produce:** `migration/data/validation-report.json` with pass/fail per check and a console summary. See [Doc 05](docs/researchhub-migration-doc05.md) for details.
 
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation | Phase |
+|---|---|---|---|
+| **Image extraction misses some images** — articles display with broken images or leftover Base64 data | High | Automated regex scanning catches all Base64 patterns (markdown + HTML fallback); post-rewrite scan confirms zero remnants; Phase 5 validates end-to-end | 3, 5 |
+| **Content corrupted during transfer** — article text, titles, or descriptions garbled or truncated | High | Content is never modified in place — original data preserved as `data/raw/`. Automated field-by-field comparison between source and target catches discrepancies | 2, 5 |
+| **Timestamps overwritten** — all records appear created on migration day, destroying the publication timeline | High | Original `createdAt`/`updatedAt` captured during extraction and restored via direct SQLite update after API loading | 2, 4 |
+| **Migration fails partway through** — some content loaded, some not, leaving Strapi 5 inconsistent | Medium | Every script is idempotent: `legacyId` duplicate detection means re-running skips already-loaded records and picks up where it left off | 4 |
+| **Relation triangle broken** — articles lose connections to datasets and/or apps | Medium | Relations linked in a dedicated step from the dominant side; all three m2m sets verified by automated checks | 4, 5 |
+| **Media files fail to transfer** — datasets link to missing Excel files, articles to missing PDFs | Medium | Each file download and re-upload verified individually; failures logged with record IDs for targeted re-run or manual resolution | 3 |
+| **Schema generation produces invalid types** — Strapi 5 won't start | Medium | Automated schema diff (Phase 1c) catches field mismatches before any data is loaded; manual admin panel review as gate check | 1 |
+| **`thumbnail`/`image` fields may not contain Base64** — wrong field type in Strapi 5 schema | Medium | Phase 2 extraction captures raw field values; Phase 3 scan investigates actual contents before processing | 2, 3 |
+
+For the full risk register with detailed recovery procedures, see [Doc 00 — Master Design, Section 7](docs/researchhub-migration-doc00.md).
+
 ## Success Criteria
 
 1. All records transferred (matching counts between source and target)
