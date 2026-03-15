@@ -187,13 +187,7 @@ function generateSchema(ctName, model, fieldTypeMap, relationGraph) {
     attributes: {},
   };
 
-  // legacyId first — stores original Strapi 3 MongoDB ObjectId for traceability
-  schema.attributes.legacyId = {
-    type: 'string',
-    unique: true,
-  };
-
-  // Separate scalar/media fields from relations for ordering (scalars first, relations last)
+  // Separate scalar/media fields from relations for ordering
   const scalarAttrs = {};
   const relationAttrs = {};
 
@@ -206,6 +200,18 @@ function generateSchema(ctName, model, fieldTypeMap, relationGraph) {
       scalarAttrs[fieldName] = converted;
     }
   }
+
+  // Title first (Strapi 5 uses the first string field as the relation display label),
+  // then legacyId, then remaining scalars, then relations
+  if (scalarAttrs.title) {
+    schema.attributes.title = scalarAttrs.title;
+    delete scalarAttrs.title;
+  }
+
+  schema.attributes.legacyId = {
+    type: 'string',
+    unique: true,
+  };
 
   Object.assign(schema.attributes, scalarAttrs, relationAttrs);
 
