@@ -314,7 +314,7 @@ async function checkImageMediaMigration() {
     const missing = [];
 
     for (const article of articlesWithField) {
-      const mapEntry = articleMap.find((m) => String(m.legacyId) === String(article.id));
+      const mapEntry = articleMap[article.id];
       if (!mapEntry) {
         missing.push({ legacyId: article.id, reason: 'not in ID map' });
         continue;
@@ -322,7 +322,7 @@ async function checkImageMediaMigration() {
 
       try {
         const s5 = await strapi5Get(
-          `/api/articles/${mapEntry.documentId}?populate=${field}`
+          `/api/articles/${mapEntry.strapi5DocumentId}?populate=${field}`
         );
         if (!s5.data?.[field]) {
           missing.push({ legacyId: article.id, reason: `${field} is null in Strapi 5` });
@@ -351,14 +351,14 @@ async function checkImageMediaMigration() {
 
   const appMissing = [];
   for (const app of appsWithImage) {
-    const mapEntry = appMap.find((m) => String(m.legacyId) === String(app.id));
+    const mapEntry = appMap[app.id];
     if (!mapEntry) {
       appMissing.push({ legacyId: app.id, reason: 'not in ID map' });
       continue;
     }
 
     try {
-      const s5 = await strapi5Get(`/api/apps/${mapEntry.documentId}?populate=image`);
+      const s5 = await strapi5Get(`/api/apps/${mapEntry.strapi5DocumentId}?populate=image`);
       if (!s5.data?.image) {
         appMissing.push({ legacyId: app.id, reason: 'image is null in Strapi 5' });
       }
@@ -404,14 +404,14 @@ async function checkDatasetFileMigration() {
 
   const missing = [];
   for (const dataset of datasetsWithFile) {
-    const mapEntry = datasetMap.find((m) => String(m.legacyId) === String(dataset.id));
+    const mapEntry = datasetMap[dataset.id];
     if (!mapEntry) {
       missing.push({ legacyId: dataset.id, reason: 'not in ID map' });
       continue;
     }
 
     try {
-      const s5 = await strapi5Get(`/api/datasets/${mapEntry.documentId}?populate=datafile`);
+      const s5 = await strapi5Get(`/api/datasets/${mapEntry.strapi5DocumentId}?populate=datafile`);
       if (!s5.data?.datafile) {
         missing.push({ legacyId: dataset.id, reason: 'datafile is null in Strapi 5' });
       }
@@ -707,9 +707,9 @@ async function checkTimestampPreservation() {
     // Build documentId → transformed record lookup
     const docIdToTransformed = new Map();
     for (const rec of transformed) {
-      const mapEntry = idMap.find((m) => String(m.legacyId) === String(rec.legacyId));
+      const mapEntry = idMap[rec.legacyId];
       if (mapEntry?.documentId) {
-        docIdToTransformed.set(mapEntry.documentId, rec);
+        docIdToTransformed.set(mapEntry.strapi5DocumentId, rec);
       }
     }
 
@@ -800,7 +800,7 @@ async function checkContentIntegrity() {
   const failures = [];
 
   for (const article of sample) {
-    const mapEntry = articleMap.find((m) => String(m.legacyId) === String(article.id));
+    const mapEntry = articleMap[article.id];
     if (!mapEntry) {
       failures.push({ legacyId: article.id, reason: 'not in ID map' });
       allGood = false;
@@ -831,7 +831,7 @@ async function checkContentIntegrity() {
     let s5Article;
     try {
       const s5Result = await strapi5Get(
-        `/api/articles/${mapEntry.documentId}?fields[0]=title&fields[1]=slug&fields[2]=markdown`
+        `/api/articles/${mapEntry.strapi5DocumentId}?fields[0]=title&fields[1]=slug&fields[2]=markdown`
       );
       s5Article = s5Result.data;
     } catch (err) {
