@@ -9,17 +9,6 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
-## [0.9.0] - 2026-03-15
-
-### Added
-- MIT LICENSE file
-- README: Platform Support table (macOS, Linux/Ubuntu, Windows via WSL2)
-
-## [0.8.3] - 2026-03-15
-
-### Added
-- README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
-
 ## [3.0.0] - 2026-03-15
 
 ### Added
@@ -201,6 +190,17 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 - All generated migration data (`migration/data/`, `migration/output/`, `migration/config/field-map.json`)
   is now gitignored — stays on the developer's local machine only
 - README Phase 2 section updated with implemented commands and usage
+
+## [0.9.0] - 2026-03-15
+
+### Added
+- MIT LICENSE file
+- README: Platform Support table (macOS, Linux/Ubuntu, Windows via WSL2)
+
+## [0.8.3] - 2026-03-15
+
+### Added
+- README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
 ## [0.8.2] - 2026-03-15
 
