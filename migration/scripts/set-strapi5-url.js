@@ -73,8 +73,9 @@ async function main() {
 
   console.log(`Current Strapi 5 URL: ${CYAN}${currentUrl}${RESET}\n`);
 
-  // Prompt for new URL
-  const newUrl = await prompt('Strapi 5 API URL (e.g., https://researchhubv2.icjia-api.cloud)', currentUrl);
+  // Prompt for new URL — always default to localhost:1338 (the standard dev setup)
+  const defaultUrl = 'http://localhost:1338';
+  const newUrl = await prompt('Strapi 5 API URL', defaultUrl);
 
   // Derive GraphQL URL
   const newGql = newUrl.replace(/\/$/, '') + '/graphql';
