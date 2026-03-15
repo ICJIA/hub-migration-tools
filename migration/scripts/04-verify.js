@@ -450,7 +450,8 @@ async function main() {
 
     try {
       const result = await client.get(`/api/articles/${mapping.strapi5DocumentId}`, {
-        'populate': 'mainfile,extrafile',
+        'populate[0]': 'mainfile',
+        'populate[1]': 'extrafile',
       });
       if (result.data?.mainfile) mainfilePassed++;
     } catch {
