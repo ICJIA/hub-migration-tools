@@ -1,0 +1,14 @@
+{
+  "name": "hub-cms-migration-2026",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "introspect": "node scripts/01a-introspect.js",
+    "generate": "node scripts/01b-generate-schemas.js",
+    "verify": "node scripts/01c-verify-schemas.js"
+  }
+}

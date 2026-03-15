@@ -1,0 +1,55 @@
+{
+  "directMappings": {
+    "string": "string",
+    "text": "text",
+    "richtext": "richtext",
+    "integer": "integer",
+    "biginteger": "biginteger",
+    "float": "float",
+    "decimal": "decimal",
+    "boolean": "boolean",
+    "date": "date",
+    "datetime": "datetime",
+    "time": "time",
+    "json": "json",
+    "uid": "uid",
+    "enumeration": "enumeration",
+    "email": "email",
+    "password": "password",
+    "media": "media"
+  },
+  "overrides": {
+    "article.splash": {
+      "from": "string",
+      "to": {
+        "type": "media",
+        "allowedTypes": ["images"],
+        "multiple": false
+      },
+      "reason": "Base64 string in Strapi 3 → proper media reference in Strapi 5"
+    },
+    "article.thumbnail": {
+      "from": "string",
+      "to": {
+        "type": "media",
+        "allowedTypes": ["images"],
+        "multiple": false
+      },
+      "reason": "Base64 string in Strapi 3 → proper media reference in Strapi 5"
+    },
+    "app.image": {
+      "from": "string",
+      "to": {
+        "type": "media",
+        "allowedTypes": ["images"],
+        "multiple": false
+      },
+      "reason": "Base64 string in Strapi 3 → proper media reference in Strapi 5"
+    }
+  },
+  "uploadPluginAllowedTypes": {
+    "mainfile": ["files", "images"],
+    "extrafile": ["files", "images"],
+    "datafile": ["files"]
+  }
+}

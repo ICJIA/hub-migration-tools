@@ -1,0 +1,109 @@
+{
+  "kind": "collectionType",
+  "collectionName": "articles",
+  "info": {
+    "singularName": "article",
+    "pluralName": "articles",
+    "displayName": "Article",
+    "description": "Research articles with markdown body, images, and media attachments"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "legacyId": {
+      "type": "string",
+      "unique": true
+    },
+    "title": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "date": {
+      "type": "date"
+    },
+    "external": {
+      "type": "boolean"
+    },
+    "categories": {
+      "type": "json"
+    },
+    "tags": {
+      "type": "json"
+    },
+    "authors": {
+      "type": "json"
+    },
+    "splash": {
+      "type": "media",
+      "allowedTypes": [
+        "images"
+      ],
+      "multiple": false
+    },
+    "thumbnail": {
+      "type": "media",
+      "allowedTypes": [
+        "images"
+      ],
+      "multiple": false
+    },
+    "images": {
+      "type": "json"
+    },
+    "abstract": {
+      "type": "string"
+    },
+    "markdown": {
+      "type": "text"
+    },
+    "mainfiletype": {
+      "type": "string"
+    },
+    "funding": {
+      "type": "string"
+    },
+    "citation": {
+      "type": "string"
+    },
+    "doi": {
+      "type": "string"
+    },
+    "mainfile": {
+      "type": "media",
+      "allowedTypes": [
+        "files",
+        "images"
+      ],
+      "multiple": false
+    },
+    "extrafile": {
+      "type": "media",
+      "allowedTypes": [
+        "files",
+        "images"
+      ],
+      "multiple": false
+    },
+    "hideFromBanner": {
+      "type": "boolean"
+    },
+    "apps": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::app.app",
+      "mappedBy": "articles"
+    },
+    "datasets": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::dataset.dataset",
+      "inversedBy": "articles"
+    }
+  }
+}

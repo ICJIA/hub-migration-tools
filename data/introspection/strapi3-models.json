@@ -1,0 +1,233 @@
+{
+  "article": {
+    "connection": "default",
+    "collectionName": "article",
+    "info": {
+      "name": "article",
+      "description": ""
+    },
+    "options": {
+      "timestamps": [
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "attributes": {
+      "title": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "slug": {
+        "type": "string"
+      },
+      "date": {
+        "type": "date"
+      },
+      "external": {
+        "type": "boolean"
+      },
+      "categories": {
+        "type": "json"
+      },
+      "tags": {
+        "type": "json"
+      },
+      "authors": {
+        "type": "json"
+      },
+      "splash": {
+        "type": "string"
+      },
+      "thumbnail": {
+        "type": "string"
+      },
+      "images": {
+        "type": "json"
+      },
+      "abstract": {
+        "type": "string"
+      },
+      "markdown": {
+        "type": "text"
+      },
+      "mainfiletype": {
+        "type": "string"
+      },
+      "funding": {
+        "type": "string"
+      },
+      "citation": {
+        "type": "string"
+      },
+      "doi": {
+        "type": "string"
+      },
+      "apps": {
+        "collection": "app",
+        "via": "articles"
+      },
+      "mainfile": {
+        "model": "file",
+        "via": "related",
+        "plugin": "upload"
+      },
+      "extrafile": {
+        "model": "file",
+        "via": "related",
+        "plugin": "upload"
+      },
+      "datasets": {
+        "collection": "dataset",
+        "via": "articles",
+        "dominant": true
+      },
+      "hideFromBanner": {
+        "type": "boolean"
+      }
+    }
+  },
+  "dataset": {
+    "connection": "default",
+    "collectionName": "dataset",
+    "info": {
+      "name": "dataset",
+      "description": ""
+    },
+    "options": {
+      "timestamps": [
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "attributes": {
+      "title": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "slug": {
+        "type": "string"
+      },
+      "date": {
+        "type": "date"
+      },
+      "external": {
+        "type": "boolean"
+      },
+      "categories": {
+        "type": "json"
+      },
+      "tags": {
+        "type": "json"
+      },
+      "project": {
+        "type": "boolean"
+      },
+      "sources": {
+        "type": "json"
+      },
+      "unit": {
+        "type": "string"
+      },
+      "timeperiod": {
+        "type": "json"
+      },
+      "description": {
+        "type": "text"
+      },
+      "notes": {
+        "type": "json"
+      },
+      "variables": {
+        "type": "json"
+      },
+      "funding": {
+        "type": "string"
+      },
+      "citation": {
+        "type": "string"
+      },
+      "apps": {
+        "collection": "app",
+        "via": "datasets"
+      },
+      "datafile": {
+        "model": "file",
+        "via": "related",
+        "plugin": "upload"
+      },
+      "articles": {
+        "collection": "article",
+        "via": "datasets"
+      }
+    }
+  },
+  "app": {
+    "connection": "default",
+    "collectionName": "app",
+    "info": {
+      "name": "app",
+      "description": ""
+    },
+    "options": {
+      "timestamps": [
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "attributes": {
+      "title": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "slug": {
+        "type": "string"
+      },
+      "date": {
+        "type": "date"
+      },
+      "external": {
+        "type": "boolean"
+      },
+      "categories": {
+        "type": "json"
+      },
+      "tags": {
+        "type": "json"
+      },
+      "contributors": {
+        "type": "json"
+      },
+      "image": {
+        "type": "string"
+      },
+      "description": {
+        "type": "text"
+      },
+      "url": {
+        "type": "string"
+      },
+      "funding": {
+        "type": "string"
+      },
+      "citation": {
+        "type": "string"
+      },
+      "datasets": {
+        "collection": "dataset",
+        "dominant": true,
+        "via": "apps"
+      },
+      "articles": {
+        "collection": "article",
+        "dominant": true,
+        "via": "apps"
+      }
+    }
+  }
+}

@@ -9,6 +9,19 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [0.5.0] - 2026-03-15
+
+### Added
+- Phase 1 implementation: all scripts and libraries
+  - `scripts/01a-introspect.js` — reads Strapi 3 schemas (local files + optional GraphQL)
+  - `scripts/01b-generate-schemas.js` — generates Strapi 5 schema.json + boilerplate
+  - `scripts/01c-verify-schemas.js` — introspects Strapi 5, diffs against Strapi 3, verifies REST API
+  - `lib/schema-generator.js` — core logic: field type mapping, relation conversion, upload plugin handling
+- `package.json` with `type: "module"` and npm script shortcuts
+- `config.example.js` — config template using environment variables for tokens
+- `config/field-type-map.json` — field type mapping rules with 3 Base64-to-media overrides
+- `.gitignore` now excludes `config.js` (contains API tokens)
+
 ## [0.4.0] - 2026-03-15
 
 ### Fixed

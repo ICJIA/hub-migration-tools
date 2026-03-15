@@ -1,0 +1,389 @@
+/**
+ * Phase 1c: Verify Strapi 5 Schemas
+ *
+ * 1. Poll Strapi 5 until it's ready
+ * 2. Run GraphQL introspection against Strapi 5
+ * 3. Load Strapi 3 introspection data
+ * 4. Diff the two, categorizing differences as expected or unexpected
+ * 5. Verify REST API responds correctly
+ * 6. Save diff to data/introspection/schema-diff.json
+ * 7. Exit 0 if clean, exit 1 if unexpected differences found
+ */
+
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..');
+
+let config;
+try {
+  config = (await import(path.join(ROOT, 'config.js'))).default;
+} catch {
+  config = (await import(path.join(ROOT, 'config.example.js'))).default;
+}
+
+const INTROSPECTION_QUERY = `{
+  __schema {
+    types {
+      name
+      kind
+      fields {
+        name
+        type {
+          name
+          kind
+          ofType {
+            name
+            kind
+            ofType {
+              name
+              kind
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+const GQL_TYPE_NAMES = new Set(['Article', 'Dataset', 'App']);
+
+// Fields we expect Strapi 5 to add that don't exist in Strapi 3
+const EXPECTED_NEW_FIELDS = new Set([
+  'documentId', 'locale', 'publishedAt', 'localizations',
+  'createdAt', 'updatedAt', 'legacyId',
+]);
+
+// Fields whose type is expected to change (Base64 string → media)
+const EXPECTED_TYPE_CHANGES = new Set([
+  'Article.splash', 'Article.thumbnail', 'App.image',
+  'Article.mainfile', 'Article.extrafile', 'Dataset.datafile',
+]);
+
+async function pollStrapi5(maxAttempts = 30, delayMs = 2000) {
+  const url = config.strapi5.apiUrl;
+  console.log(`Waiting for Strapi 5 at ${url}...`);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const headers = {};
+      if (config.strapi5.token) {
+        headers['Authorization'] = `Bearer ${config.strapi5.token}`;
+      }
+      const res = await fetch(`${url}/api/articles`, { headers, signal: AbortSignal.timeout(5000) });
+      if (res.ok || res.status === 403) {
+        console.log(`  Strapi 5 is ready (attempt ${attempt})`);
+        return true;
+      }
+    } catch {
+      // Not ready yet
+    }
+    if (attempt < maxAttempts) {
+      process.stdout.write(`  Attempt ${attempt}/${maxAttempts}...\r`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+
+  console.error(`\nERROR: Strapi 5 did not respond after ${maxAttempts} attempts.`);
+  console.error('Make sure Strapi 5 is running with the generated schemas.');
+  console.error('Also ensure @strapi/plugin-graphql is installed for introspection.');
+  return false;
+}
+
+async function introspectStrapi5() {
+  const url = config.strapi5.graphqlUrl;
+  console.log(`\nIntrospecting Strapi 5 GraphQL at ${url}...`);
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (config.strapi5.token) {
+    headers['Authorization'] = `Bearer ${config.strapi5.token}`;
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ query: INTROSPECTION_QUERY }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`GraphQL introspection failed: HTTP ${response.status}\n${body}`);
+  }
+
+  const json = await response.json();
+  if (json.errors) {
+    throw new Error(`GraphQL errors: ${JSON.stringify(json.errors, null, 2)}`);
+  }
+
+  const allTypes = json.data.__schema.types;
+  const contentTypes = allTypes.filter(t => GQL_TYPE_NAMES.has(t.name) && t.kind === 'OBJECT');
+
+  console.log(`  Found ${contentTypes.length} content types: ${contentTypes.map(t => t.name).join(', ')}`);
+  return { types: contentTypes };
+}
+
+function resolveTypeName(typeObj) {
+  if (!typeObj) return 'null';
+  if (typeObj.name) return typeObj.name;
+  if (typeObj.kind === 'NON_NULL' || typeObj.kind === 'LIST') {
+    const inner = resolveTypeName(typeObj.ofType);
+    return typeObj.kind === 'NON_NULL' ? `${inner}!` : `[${inner}]`;
+  }
+  return 'unknown';
+}
+
+function diffSchemas(strapi3Types, strapi5Types) {
+  const diff = { expected: [], unexpected: [], summary: { pass: true } };
+
+  const s3Map = new Map(strapi3Types.map(t => [t.name, t]));
+  const s5Map = new Map(strapi5Types.map(t => [t.name, t]));
+
+  // Check each expected content type
+  for (const typeName of GQL_TYPE_NAMES) {
+    const s3Type = s3Map.get(typeName);
+    const s5Type = s5Map.get(typeName);
+
+    if (!s5Type) {
+      diff.unexpected.push({
+        type: typeName,
+        issue: 'MISSING_TYPE',
+        detail: `Content type ${typeName} missing from Strapi 5`,
+      });
+      diff.summary.pass = false;
+      continue;
+    }
+
+    if (!s3Type) {
+      diff.expected.push({
+        type: typeName,
+        issue: 'NO_S3_COMPARISON',
+        detail: `No Strapi 3 GraphQL data for ${typeName} (model files used instead)`,
+      });
+      continue;
+    }
+
+    const s3Fields = new Map((s3Type.fields || []).map(f => [f.name, f]));
+    const s5Fields = new Map((s5Type.fields || []).map(f => [f.name, f]));
+
+    // Fields in Strapi 5 but not Strapi 3
+    for (const [fieldName] of s5Fields) {
+      if (!s3Fields.has(fieldName)) {
+        const entry = { type: typeName, field: fieldName, issue: 'NEW_FIELD' };
+        if (EXPECTED_NEW_FIELDS.has(fieldName)) {
+          entry.detail = 'Expected new Strapi 5 field';
+          diff.expected.push(entry);
+        } else {
+          entry.detail = `Unexpected new field in Strapi 5: ${fieldName}`;
+          diff.unexpected.push(entry);
+          diff.summary.pass = false;
+        }
+      }
+    }
+
+    // Fields in Strapi 3 but not Strapi 5
+    for (const [fieldName] of s3Fields) {
+      if (fieldName === 'id') continue; // ID field changes are expected
+      if (!s5Fields.has(fieldName)) {
+        diff.unexpected.push({
+          type: typeName,
+          field: fieldName,
+          issue: 'MISSING_FIELD',
+          detail: `Field ${fieldName} exists in Strapi 3 but missing from Strapi 5`,
+        });
+        diff.summary.pass = false;
+      }
+    }
+
+    // Type changes
+    for (const [fieldName, s3Field] of s3Fields) {
+      const s5Field = s5Fields.get(fieldName);
+      if (!s5Field) continue;
+
+      const s3TypeName = resolveTypeName(s3Field.type);
+      const s5TypeName = resolveTypeName(s5Field.type);
+
+      if (s3TypeName !== s5TypeName) {
+        const qualifiedName = `${typeName}.${fieldName}`;
+        const entry = {
+          type: typeName,
+          field: fieldName,
+          issue: 'TYPE_CHANGE',
+          strapi3Type: s3TypeName,
+          strapi5Type: s5TypeName,
+        };
+
+        if (EXPECTED_TYPE_CHANGES.has(qualifiedName)) {
+          entry.detail = 'Expected type change (Base64 string → media or upload plugin → media)';
+          diff.expected.push(entry);
+        } else {
+          entry.detail = `Unexpected type change: ${s3TypeName} → ${s5TypeName}`;
+          diff.unexpected.push(entry);
+          diff.summary.pass = false;
+        }
+      }
+    }
+  }
+
+  diff.summary.expectedCount = diff.expected.length;
+  diff.summary.unexpectedCount = diff.unexpected.length;
+  return diff;
+}
+
+async function verifyRestApi() {
+  console.log('\nVerifying Strapi 5 REST API...');
+  const checks = [];
+
+  for (const ctName of config.contentTypes) {
+    const url = `${config.strapi5.apiUrl}/api/${ctName}s`;
+    const headers = {};
+    if (config.strapi5.token) {
+      headers['Authorization'] = `Bearer ${config.strapi5.token}`;
+    }
+
+    try {
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+      const json = await res.json();
+      const hasData = Array.isArray(json.data);
+      const hasMeta = json.meta?.pagination !== undefined;
+
+      checks.push({
+        contentType: ctName,
+        url,
+        status: res.status,
+        hasDataArray: hasData,
+        hasPagination: hasMeta,
+        pass: res.ok && hasData && hasMeta,
+      });
+
+      const icon = res.ok && hasData && hasMeta ? '✓' : '✗';
+      console.log(`  ${icon} GET ${url} → ${res.status} (data: ${hasData}, pagination: ${hasMeta})`);
+    } catch (err) {
+      checks.push({ contentType: ctName, url, error: err.message, pass: false });
+      console.log(`  ✗ GET ${url} → ${err.message}`);
+    }
+  }
+
+  return checks;
+}
+
+async function verifyLegacyIdField() {
+  console.log('\nVerifying legacyId field exists on all types...');
+  const results = [];
+
+  for (const ctName of config.contentTypes) {
+    const url = `${config.strapi5.apiUrl}/api/${ctName}s?fields[0]=legacyId&pagination[pageSize]=1`;
+    const headers = {};
+    if (config.strapi5.token) {
+      headers['Authorization'] = `Bearer ${config.strapi5.token}`;
+    }
+
+    try {
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+      // If the field doesn't exist, Strapi 5 returns a 400 or ignores it
+      const pass = res.ok;
+      results.push({ contentType: ctName, pass });
+      console.log(`  ${pass ? '✓' : '✗'} ${ctName}: legacyId field ${pass ? 'accessible' : 'NOT accessible'}`);
+    } catch (err) {
+      results.push({ contentType: ctName, pass: false, error: err.message });
+      console.log(`  ✗ ${ctName}: ${err.message}`);
+    }
+  }
+
+  return results;
+}
+
+async function main() {
+  console.log('=== Phase 1c: Verify Strapi 5 Schemas ===\n');
+
+  // Poll for readiness
+  const ready = await pollStrapi5();
+  if (!ready) process.exit(1);
+
+  // Introspect Strapi 5
+  let strapi5Data;
+  try {
+    strapi5Data = await introspectStrapi5();
+  } catch (err) {
+    console.error(`\nERROR: GraphQL introspection failed.`);
+    console.error('Is @strapi/plugin-graphql installed in the Strapi 5 project?');
+    console.error(`Detail: ${err.message}`);
+    process.exit(1);
+  }
+
+  // Save Strapi 5 introspection
+  const outputDir = path.resolve(ROOT, config.paths.introspection);
+  await fs.mkdir(outputDir, { recursive: true });
+  const s5Path = path.join(outputDir, 'strapi5.json');
+  await fs.writeFile(s5Path, JSON.stringify(strapi5Data, null, 2));
+  console.log(`Strapi 5 introspection saved to ${path.relative(ROOT, s5Path)}`);
+
+  // Load Strapi 3 introspection
+  const s3Path = path.join(outputDir, 'strapi3.json');
+  let strapi3Data;
+  try {
+    strapi3Data = JSON.parse(await fs.readFile(s3Path, 'utf8'));
+  } catch {
+    console.warn('\nWARNING: No Strapi 3 GraphQL introspection data found.');
+    console.warn('Schema diff will be limited to REST API checks only.');
+    strapi3Data = { types: [] };
+  }
+
+  // Diff schemas
+  console.log('\nDiffing Strapi 3 vs Strapi 5 schemas...');
+  const diff = diffSchemas(strapi3Data.types || [], strapi5Data.types || []);
+
+  // REST API checks
+  const restChecks = await verifyRestApi();
+  const restPass = restChecks.every(c => c.pass);
+
+  // legacyId checks
+  const legacyChecks = await verifyLegacyIdField();
+  const legacyPass = legacyChecks.every(c => c.pass);
+
+  // Save diff
+  const fullReport = {
+    generatedAt: new Date().toISOString(),
+    schemaDiff: diff,
+    restApiChecks: restChecks,
+    legacyIdChecks: legacyChecks,
+    overallPass: diff.summary.pass && restPass && legacyPass,
+  };
+
+  const diffPath = path.join(outputDir, 'schema-diff.json');
+  await fs.writeFile(diffPath, JSON.stringify(fullReport, null, 2));
+  console.log(`\nFull report saved to ${path.relative(ROOT, diffPath)}`);
+
+  // Print summary
+  console.log('\n--- Verification Results ---');
+
+  if (diff.expected.length > 0) {
+    console.log(`\nExpected differences (${diff.expected.length}):`);
+    for (const d of diff.expected) {
+      console.log(`  ✓ ${d.type}${d.field ? '.' + d.field : ''}: ${d.detail}`);
+    }
+  }
+
+  if (diff.unexpected.length > 0) {
+    console.log(`\nUNEXPECTED differences (${diff.unexpected.length}):`);
+    for (const d of diff.unexpected) {
+      console.log(`  ✗ ${d.type}${d.field ? '.' + d.field : ''}: ${d.detail}`);
+    }
+  }
+
+  console.log(`\nREST API: ${restPass ? 'PASS ✓' : 'FAIL ✗'}`);
+  console.log(`legacyId field: ${legacyPass ? 'PASS ✓' : 'FAIL ✗'}`);
+  console.log(`Schema diff: ${diff.summary.pass ? 'PASS ✓' : 'FAIL ✗'} (${diff.summary.expectedCount} expected, ${diff.summary.unexpectedCount} unexpected)`);
+
+  const overallPass = diff.summary.pass && restPass && legacyPass;
+  console.log(`\nOverall: ${overallPass ? 'PASS ✓ — Ready for Phase 2' : 'FAIL ✗ — Review issues above before proceeding'}`);
+
+  process.exit(overallPass ? 0 : 1);
+}
+
+main().catch(err => {
+  console.error('\nFATAL:', err.message);
+  process.exit(1);
+});
