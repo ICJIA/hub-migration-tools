@@ -16,24 +16,18 @@ The installer will ask several questions:
 |---|---|
 | Ok to proceed? | **y** |
 | Use TypeScript? | **No** (JavaScript) |
-| Install dependencies with npm? | **No** — we'll use pnpm |
+| Install dependencies with npm? | **Yes** |
 | Initialize a git repository? | Your choice (yes if standalone, no if part of a larger repo) |
 
-Then install with pnpm:
+> **Why npm and not pnpm for Strapi 5?** Strapi depends on `better-sqlite3`, a native C++ module that must be compiled during install. pnpm blocks build scripts by default and its strict module isolation causes binding resolution failures. npm handles native modules reliably. The migration project itself uses pnpm — this only applies to the Strapi 5 project.
+
+If you already installed with pnpm and get `Could not locate the bindings file` errors:
 
 ```bash
 cd strapi5-researchhub
-pnpm install
+rm -rf node_modules pnpm-lock.yaml
+npm install
 ```
-
-**Important:** pnpm blocks native build scripts by default. You need to approve `better-sqlite3` (Strapi's SQLite driver):
-
-```bash
-pnpm approve-builds better-sqlite3
-pnpm rebuild better-sqlite3
-```
-
-If you skip this, you'll get `Could not locate the bindings file` errors when starting Strapi.
 
 ## 2. Install the GraphQL Plugin
 
