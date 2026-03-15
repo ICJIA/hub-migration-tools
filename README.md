@@ -7,7 +7,7 @@ A complete, automated migration tool for converting a legacy Strapi 3 (MongoDB) 
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 3.0.0 ([Changelog](CHANGELOG.md))
+**Version:** 3.1.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -149,13 +149,31 @@ Each phase is interactive — prompts between steps, explains what's needed, and
 
 Open `http://localhost:1338/admin` and verify: articles have images, relations show titles, files download, dates are historic.
 
-### Done!
+### Done! (Locally)
 
-Your local Strapi 5 is a verified copy of production Strapi 3 data. When ready for production:
+Your local Strapi 5 is a verified copy of production Strapi 3 data. Browse the admin panel, check the content, verify relations.
 
-1. Set up a Strapi 5 instance on DigitalOcean (see [Strapi 5 Setup Guide](docs/STRAPI5-SETUP.md))
-2. Point at production: `pnpm set-strapi5`
-3. Run all phases again: `pnpm migrate:clean` then `pnpm migrate:phase01` through `phase06`
+### When ready for production
+
+The production instance runs at `https://v2.researchhub.icjia-api.cloud` on a DigitalOcean droplet with PM2 + Nginx.
+
+```bash
+# Point migration at production
+cp config.prod.js config.js
+pnpm set-strapi5
+# URL: https://v2.researchhub.icjia-api.cloud
+# Token: (your production API token)
+
+# Clean local test data and run against production
+pnpm migrate:clean
+pnpm migrate:phase01 through pnpm migrate:phase06
+```
+
+For full server setup instructions (Nginx, PM2, SSL, timestamp fix on remote DB), see the **[DigitalOcean Deployment Guide](docs/DIGITALOCEAN-DEPLOY.md)**.
+
+Deploy configs are in the [`deploy/`](deploy/) directory:
+- [`nginx-strapi5.conf`](deploy/nginx-strapi5.conf) — Nginx reverse proxy (port 1337 → HTTPS, 200MB upload limit)
+- [`ecosystem.config.cjs`](deploy/ecosystem.config.cjs) — PM2 process manager config
 
 ---
 
@@ -527,7 +545,8 @@ Compares all records by `legacyId`, automatically loads new records, flags updat
 | **[Doc 04 — Phase 4](docs/researchhub-migration-doc04.md)** | Content loading, relations, timestamps |
 | **[Doc 05 — Phase 5](docs/researchhub-migration-doc05.md)** | Automated validation checks |
 | **[Doc 06 — Phase 6](docs/researchhub-migration-doc06.md)** | Field-by-field parity audit |
-| **[Strapi 5 Setup Guide](docs/STRAPI5-SETUP.md)** | Installation, PM2, Nginx, Laravel Forge |
+| **[Strapi 5 Setup Guide](docs/STRAPI5-SETUP.md)** | Local installation, GraphQL plugin, port config |
+| **[DigitalOcean Deployment](docs/DIGITALOCEAN-DEPLOY.md)** | Production deploy: PM2, Nginx, SSL, remote timestamp fix |
 | **[Scripts Reference](migration/scripts/README.md)** | Per-script documentation |
 
 Strapi 3 schemas: [`article.settings.json`](schemas/article.settings.json) · [`dataset.settings.json`](schemas/dataset.settings.json) · [`app.settings.json`](schemas/app.settings.json)

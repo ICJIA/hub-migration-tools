@@ -9,6 +9,18 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [3.1.0] - 2026-03-15
+
+### Added
+- **DigitalOcean Deployment Guide** (`docs/DIGITALOCEAN-DEPLOY.md`) — complete production deployment
+  walkthrough: Strapi 5 install, PM2, Nginx reverse proxy, SSL, schema copy, remote timestamp fix,
+  post-migration checklist, ongoing sync
+- `deploy/nginx-strapi5.conf` — Nginx config for `v2.researchhub.icjia-api.cloud` → localhost:1337
+  with 200MB upload limit and 5-minute timeouts
+- `deploy/ecosystem.config.cjs` — PM2 process manager config for production Strapi 5
+- Production URL set to `https://v2.researchhub.icjia-api.cloud` in `config.prod.js`
+- README: production deployment section with deploy directory links
+
 ## [3.0.0] - 2026-03-15
 
 ### Added
