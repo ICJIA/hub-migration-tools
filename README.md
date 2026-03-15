@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 2.5.0 ([Changelog](CHANGELOG.md))
+**Version:** 2.6.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -12,6 +12,204 @@
 ResearchHub is ICJIA's platform for publishing research articles, datasets, and data dashboards. This project migrates ResearchHub's content management system from Strapi 3 (MongoDB) to Strapi 5 (SQLite).
 
 Strapi 3 reached end of life in 2022 and no longer receives security patches or compatibility updates. Strapi 5 runs on SQLite, reducing infrastructure complexity and hosting costs while restoring active security and feature support.
+
+## Quick Start: Complete Migration Walkthrough
+
+This walkthrough takes you from zero to a fully migrated Strapi 5 instance. It assumes:
+- Strapi 3 is running in production at `https://researchhub.icjia-api.cloud`
+- You're testing locally on your Mac before deploying to a production Strapi 5 server
+- You have Node.js 18+ and pnpm installed
+
+### Step 1: Clone and install the migration project
+
+```bash
+git clone https://github.com/ICJIA/hub-cms-migration-2026.git
+cd hub-cms-migration-2026
+pnpm install
+```
+
+### Step 2: Create a fresh Strapi 5 project
+
+In a **separate directory** (not inside the migration project):
+
+```bash
+cd ..
+npx create-strapi@latest strapi5-researchhub
+```
+
+Answer the prompts:
+- TypeScript? **No**
+- Install dependencies with npm? **Yes** (npm, not pnpm — native module compatibility)
+- Initialize git? Your choice
+
+Then set the port to 1338 (avoids conflict with Strapi 3's default 1337):
+
+```bash
+cd strapi5-researchhub
+echo "PORT=1338" >> .env
+```
+
+Install the GraphQL plugin (needed for Phase 1 verification):
+
+```bash
+npm install @strapi/plugin-graphql
+```
+
+Start Strapi 5:
+
+```bash
+npm run develop
+```
+
+Wait for "Welcome back!" then open `http://localhost:1338/admin` and create your admin account.
+
+### Step 3: Create an API token
+
+In the Strapi 5 admin panel:
+1. Go to **Settings** → **API Tokens** → **Create new API Token**
+2. Name: `migration`
+3. Token type: **Full access**
+4. Click **Save** and copy the token (shown only once)
+
+### Step 4: Configure the migration project
+
+Back in the migration project directory:
+
+```bash
+cd ../hub-cms-migration-2026
+cp config.dev.js config.js
+```
+
+Set your API token (choose one method):
+
+```bash
+# Option A: interactive (recommended — prompts for URL and token)
+pnpm set-strapi5
+
+# Option B: edit config.js directly and paste the token into strapi5.token
+
+# Option C: environment variable
+export STRAPI5_TOKEN="your-token-here"
+```
+
+### Step 5: Run Phase 1 — Schema Setup
+
+```bash
+pnpm migrate:phase01
+```
+
+This will:
+1. Read the Strapi 3 schemas (from local `schemas/` directory + live GraphQL introspection)
+2. Generate Strapi 5 `schema.json` files for all 3 content types
+3. **Automatically copy** the schemas to your Strapi 5 project
+4. Prompt you to restart Strapi 5 (so it picks up the new schemas)
+5. Verify the schemas were applied correctly
+
+**After this phase:** Strapi 5 has empty Article, Dataset, and App content types with all the right fields and relations. No data yet.
+
+### Step 6: Run Phase 2 — Data Extraction
+
+```bash
+pnpm migrate:phase02
+```
+
+This will:
+1. Connect to production Strapi 3 via GraphQL
+2. Extract all ~246 articles, ~35 datasets, ~14 apps with full field data
+3. Save everything as local JSON files in `migration/data/raw/`
+4. Verify record counts match Strapi 3's REST count endpoints
+
+**After this phase:** All Strapi 3 data exists locally. Strapi 3 is no longer needed for the remaining phases (though it must be running for Phase 5 and 6 cross-validation).
+
+### Step 7: Run Phase 3 — Base64 Extraction & Media Migration
+
+```bash
+pnpm migrate:phase03
+```
+
+This is the longest phase. It will:
+1. Scan all articles for Base64 images in `splash`, `thumbnail`, and `markdown` fields
+2. Scan all apps for Base64 images in the `image` field
+3. Decode ~1,000+ Base64 images to binary files
+4. Upload all decoded images to Strapi 5's media library
+5. Download and re-upload `mainfile`/`extrafile` (articles) and `datafile` (datasets) from Strapi 3
+6. Rewrite article `markdown` content to replace Base64 with `/uploads/` URLs
+7. Transform all three content types for Strapi 5 loading
+8. Verify zero Base64 remnants remain
+
+**After this phase:** All media files are in Strapi 5. All content is transformed and ready to load. `migration/data/transformed/` has the final article, dataset, and app JSON files.
+
+### Step 8: Run Phase 4 — Content Loading & Timestamp Restoration
+
+```bash
+pnpm migrate:phase04
+```
+
+This will:
+1. Load datasets into Strapi 5 (no dependencies)
+2. Load apps into Strapi 5 (dominant on 2 relations)
+3. Load articles into Strapi 5 (dominant on article↔dataset)
+4. Link the relation triangle: article→datasets, app→articles, app→datasets
+5. Prompt you to **stop Strapi 5** for the timestamp fix
+6. Restore original `createdAt`/`updatedAt` via direct SQLite update
+7. Auto-configure "Entry title" so the admin panel shows titles (not IDs) in relation pickers
+8. Prompt you to **restart Strapi 5**
+9. Verify all records loaded, relations linked, timestamps correct
+
+**After this phase:** Strapi 5 is fully populated with all content, relations, and original timestamps.
+
+### Step 9: Run Phase 5 — Validation
+
+```bash
+pnpm migrate:phase05
+```
+
+Runs 10 automated checks:
+1. Record counts match between Strapi 3 and Strapi 5
+2. Every Strapi 3 ID maps to exactly one Strapi 5 record
+3. Zero `data:image/` strings in any text field
+4. All splash/thumbnail/mainfile/extrafile/app image media relations set
+5. All dataset datafile media relations set
+6. Every media URL returns HTTP 200
+7. All 3 relation sets (article↔dataset, app↔article, app↔dataset) intact
+8. All timestamps match originals (±1 second)
+9. Random 10% content spot check (title, slug, markdown length)
+10. Zero duplicate `legacyId` values
+
+**Expected result:** `10/10 checks passed — MIGRATION VALIDATED ✓`
+
+### Step 10: Run Phase 6 — Parity Audit
+
+```bash
+pnpm migrate:phase06
+```
+
+Field-by-field comparison of every record. Produces:
+- `migration/data/audit-report.json` — structured findings
+- `migration/data/audit-report.md` — human-readable report
+
+**Expected result:** `0 ERRORs` with ~1,300 EXPECTED changes (Base64→media, date format, boolean defaults).
+
+### Step 11: Manual QA
+
+Open your Strapi 5 admin panel (`http://localhost:1338/admin`) and spot-check:
+- Articles display with splash images and thumbnails
+- Inline images render in markdown content
+- Relations show titles (not ObjectIds) in the relation picker
+- Dataset files are downloadable
+- App dashboard links work
+- Publication dates are historic (not migration day)
+
+### You're done!
+
+Your local Strapi 5 instance is a verified copy of the production Strapi 3 data. When you're ready to deploy to production:
+1. Set up a Strapi 5 instance on DigitalOcean (see [Strapi 5 Setup Guide](docs/STRAPI5-SETUP.md))
+2. Point the migration at the production URL: `pnpm set-strapi5`
+3. Run all phases again: `pnpm migrate:phase01` through `pnpm migrate:phase06`
+
+If new content is added to Strapi 3 before you switch over, run `pnpm sync` to catch up.
+
+---
 
 ## Migration Approach
 

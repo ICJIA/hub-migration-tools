@@ -20,6 +20,13 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.6.0] - 2026-03-15
+
+### Added
+- README: comprehensive "Quick Start: Complete Migration Walkthrough" — 11 detailed steps
+  from clone to verified migration, written for a new developer testing locally before
+  deploying to production
+
 ## [2.5.0] - 2026-03-15
 
 ### Added
