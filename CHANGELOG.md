@@ -20,6 +20,15 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.9.0] - 2026-03-15
+
+### Changed
+- README consolidated from 1,123 lines to 567 — removed redundant phase descriptions
+  (phases now described once with CLI output examples, not three times)
+- Migration Checklist moved to collapsible `<details>` block
+- Configuration, resetting, platform support consolidated into Quick Start
+- CLI output examples use `console` code fence for better GitHub rendering
+
 ## [2.8.0] - 2026-03-15
 
 ### Added
