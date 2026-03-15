@@ -151,7 +151,20 @@ async function loadContentType({ client, pluralName, label, records, relationFie
         let payload = stripInternalFields(record);
         payload = stripRelationFields(payload, relationFields);
 
-        const result = await client.post(`/api/${pluralName}`, payload);
+        let result;
+        try {
+          result = await client.post(`/api/${pluralName}`, payload);
+        } catch (postErr) {
+          // Handle slug collision: if uid field rejects a duplicate slug, append legacyId suffix
+          if (postErr.message?.includes('unique') || postErr.message?.includes('already being used') || postErr.message?.includes('must be unique')) {
+            const origSlug = payload.slug;
+            payload.slug = `${payload.slug}-${legacyId.slice(-6)}`;
+            console.log(`  ${YELLOW}${progress}: slug "${origSlug}" already exists — retrying as "${payload.slug}"${RESET}`);
+            result = await client.post(`/api/${pluralName}`, payload);
+          } else {
+            throw postErr;
+          }
+        }
 
         if (result.data) {
           idMap[legacyId] = {
