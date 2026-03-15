@@ -148,15 +148,43 @@ node migration/scripts/01c-verify-schemas.js
 
 ---
 
-## Phase 2: Data Extraction *(not yet implemented)*
+## Phase 2: Data Extraction
 
-| Script | Purpose |
-|---|---|
-| `02-run-phase.js` | Orchestrator — runs all Phase 2 steps with prompts |
-| `02-extract.js` | Pull all content from Strapi 3 via GraphQL, save as local JSON |
-| `02-verify.js` | Verify record counts match Strapi 3 REST endpoints, check data integrity |
+### `02-run-phase.js` (recommended)
 
-**Produces:** `migration/data/raw/articles.json`, `datasets.json`, `apps.json`, extraction manifest
+**What it does:** Orchestrates extraction and verification with interactive prompts and graceful failure recovery.
+
+```bash
+node migration/scripts/02-run-phase.js    # or: pnpm migrate:phase02
+```
+
+### `02-extract.js`
+
+**What it does:** Pulls all content from Strapi 3 via paginated GraphQL queries. Extracts articles (~250), datasets (~42), and apps (~15) with all scalar fields, relation expansions, and media references. Verifies record counts against Strapi 3 REST endpoints after extraction.
+
+**Requires:** Strapi 3 running and accessible at the configured URL.
+
+**Produces:**
+- `migration/data/raw/articles.json` — all articles with full field data (including Base64 splash/thumbnail/markdown)
+- `migration/data/raw/datasets.json` — all datasets with datafile media references
+- `migration/data/raw/apps.json` — all apps with image field and relation data
+- `migration/data/raw/manifest.json` — extraction metadata, record counts, timestamp
+
+```bash
+node migration/scripts/02-extract.js
+```
+
+### `02-verify.js`
+
+**What it does:** Validates extracted data integrity without re-extracting. Checks: JSON parsability, ObjectId format, timestamps, duplicate IDs, relation arrays, media reference completeness, and Strapi 3 REST count parity.
+
+**Requires:** Phase 2 extraction complete (`migration/data/raw/*.json` files exist).
+
+**Exit codes:** 0 = all checks pass, 1 = failures found.
+
+```bash
+node migration/scripts/02-verify.js
+```
 
 ---
 

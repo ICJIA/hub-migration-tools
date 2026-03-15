@@ -14,10 +14,10 @@ build/
 dist/
 exports/
 
-# Data directories (may contain large extracts)
-migration/data/raw/
-migration/data/transformed/
-migration/data/media/
+# Migration generated data (stays local, not in repo)
+migration/data/
+migration/output/
+migration/config/field-map.json
 
 # SQLite
 *.db

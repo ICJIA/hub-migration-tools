@@ -1,6 +1,6 @@
 {
   "name": "hub-cms-migration-2026",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.30.3",
@@ -10,6 +10,8 @@
   "scripts": {
     "clean": "node migration/scripts/00-clean.js",
     "migrate:phase01": "node migration/scripts/01-run-phase.js",
+    "migrate:phase02": "node migration/scripts/02-run-phase.js",
+    "extract": "node migration/scripts/02-extract.js",
     "introspect": "node migration/scripts/01a-introspect.js",
     "generate": "node migration/scripts/01b-generate-schemas.js",
     "verify": "node migration/scripts/01c-verify-schemas.js"

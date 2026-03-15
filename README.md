@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 0.9.0 ([Changelog](CHANGELOG.md))
+**Version:** 1.0.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -160,17 +160,26 @@ node migration/scripts/01c-verify-schemas.js
 - Route, controller, and service boilerplate for each content type
 - Field mapping reference at `migration/config/field-map.json`
 
-### Phase 2: Data Extraction *(not yet implemented)*
+### Phase 2: Data Extraction
 
-Pulls all content from Strapi 3 via GraphQL and stores it as local JSON files. After this phase, Strapi 3 is no longer needed — all data exists locally.
+Pulls all content from Strapi 3 via paginated GraphQL queries and stores it as local JSON files. After this phase, Strapi 3 is no longer needed — all data exists locally.
+
+**Recommended — run the interactive orchestrator:**
 
 ```bash
-pnpm migrate:phase02          # orchestrator (when implemented)
+pnpm migrate:phase02
+```
+
+**Or run each step individually:**
+
+```bash
 node migration/scripts/02-extract.js    # extract all content types
 node migration/scripts/02-verify.js     # verify counts and data integrity
 ```
 
-**What it will produce:** `migration/data/raw/articles.json`, `datasets.json`, `apps.json`, and an extraction manifest. See [Doc 02](docs/researchhub-migration-doc02.md) for details.
+**What it produces:** `migration/data/raw/articles.json`, `datasets.json`, `apps.json`, and an extraction manifest. See [Doc 02](docs/researchhub-migration-doc02.md) for details.
+
+> **Note:** All generated data in `migration/data/` and `migration/output/` is gitignored. It stays on the developer's local machine only.
 
 ### Phase 3: Base64 Extraction & Media Migration *(not yet implemented)*
 

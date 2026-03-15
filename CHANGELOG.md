@@ -20,6 +20,21 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [1.0.0] - 2026-03-15
+
+### Added
+- Phase 2 implementation: data extraction from Strapi 3
+  - `migration/scripts/02-extract.js` — paginated GraphQL extraction for all 3 content types
+  - `migration/scripts/02-verify.js` — standalone verification of extracted data integrity
+  - `migration/scripts/02-run-phase.js` — Phase 2 orchestrator with interactive prompts
+  - `migration/lib/graphql-client.js` — reusable GraphQL client with auth, timeout, error handling
+- `pnpm migrate:phase02` and `pnpm extract` shortcuts
+
+### Changed
+- All generated migration data (`migration/data/`, `migration/output/`, `migration/config/field-map.json`)
+  is now gitignored — stays on the developer's local machine only
+- README Phase 2 section updated with implemented commands and usage
+
 ## [0.8.2] - 2026-03-15
 
 ### Added
