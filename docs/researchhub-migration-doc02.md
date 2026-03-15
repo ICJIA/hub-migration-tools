@@ -60,18 +60,28 @@ The script dynamically builds a GraphQL query for each content type based on the
 
 ```graphql
 query GetArticles($start: Int!, $limit: Int!) {
-  articles(start: $start, limit: $limit, sort: "created_at:asc") {
+  articles(start: $start, limit: $limit, sort: "createdAt:asc") {
     id
     title
+    status
     slug
-    body
-    splash
-    abstract
-    category
+    date
+    external
+    categories
     tags
-    created_at
-    updated_at
-    published_at
+    authors
+    splash
+    thumbnail
+    images
+    abstract
+    markdown
+    mainfiletype
+    funding
+    citation
+    doi
+    hideFromBanner
+    createdAt
+    updatedAt
     datasets {
       id
       title
@@ -81,27 +91,15 @@ query GetArticles($start: Int!, $limit: Int!) {
       id
       title
     }
-  }
-}
-```
-
-> **Note:** The field list above is approximate. The script reads `data/introspection/strapi3-models.json` and dynamically includes all scalar fields plus one level of relation expansion (id + identifying fields for related entries). The `created_at` and `updated_at` fields are always included for timestamp preservation (Phase 4).
-
-#### Dataset Query
-
-```graphql
-query GetDatasets($start: Int!, $limit: Int!) {
-  datasets(start: $start, limit: $limit, sort: "created_at:asc") {
-    id
-    title
-    slug
-    description
-    category
-    tags
-    created_at
-    updated_at
-    published_at
-    datafile {
+    mainfile {
+      id
+      url
+      name
+      mime
+      size
+      ext
+    }
+    extrafile {
       id
       url
       name
@@ -113,25 +111,88 @@ query GetDatasets($start: Int!, $limit: Int!) {
 }
 ```
 
-The `datafile` field is expanded to include the full media object — we need the `url` to download the file in Phase 3, and the `name`/`mime`/`ext` for re-upload metadata.
+> **Note:** These are the confirmed fields from the actual Strapi 3 schemas stored in `schemas/`. The body field is called `markdown` (type: text). The `splash` and `thumbnail` fields are strings (likely Base64). The `images` field is JSON and may contain Base64 data or image references. The `mainfile` and `extrafile` are media upload references. Timestamps are camelCase (`createdAt`/`updatedAt`); there is no `published_at` field.
+
+#### Dataset Query
+
+```graphql
+query GetDatasets($start: Int!, $limit: Int!) {
+  datasets(start: $start, limit: $limit, sort: "createdAt:asc") {
+    id
+    title
+    status
+    slug
+    date
+    external
+    categories
+    tags
+    project
+    sources
+    unit
+    timeperiod
+    description
+    notes
+    variables
+    funding
+    citation
+    createdAt
+    updatedAt
+    datafile {
+      id
+      url
+      name
+      mime
+      size
+      ext
+    }
+    apps {
+      id
+      title
+    }
+    articles {
+      id
+      title
+    }
+  }
+}
+```
+
+The `datafile` field is expanded to include the full media object — we need the `url` to download the file in Phase 3, and the `name`/`mime`/`ext` for re-upload metadata. Datasets also have m2m relations to `apps` and `articles`.
 
 #### App Query
 
 ```graphql
 query GetApps($start: Int!, $limit: Int!) {
-  apps(start: $start, limit: $limit, sort: "created_at:asc") {
+  apps(start: $start, limit: $limit, sort: "createdAt:asc") {
     id
     title
-    summary
+    status
+    slug
+    date
+    external
+    categories
+    tags
+    contributors
+    image
+    description
     url
-    created_at
-    updated_at
-    published_at
+    funding
+    citation
+    createdAt
+    updatedAt
+    datasets {
+      id
+      title
+    }
+    articles {
+      id
+      title
+    }
   }
 }
 ```
 
-Apps are flat — no relations to expand (the inverse `articles` relation is not needed here; it will be reconstructed from the article side during loading).
+Apps have two m2m relations (datasets, articles) and an `image` field that may contain Base64 data.
 
 ### Step 2b: Execute Queries with Pagination
 
@@ -163,7 +224,7 @@ async function extractAll(contentType, query, client) {
 }
 ```
 
-**Sort order:** All queries sort by `created_at:asc` to ensure deterministic pagination. Without a sort, Strapi 3's MongoDB backend may return records in inconsistent order across pages, potentially causing duplicates or gaps.
+**Sort order:** All queries sort by `createdAt:asc` to ensure deterministic pagination. Without a sort, Strapi 3's MongoDB backend may return records in inconsistent order across pages, potentially causing duplicates or gaps.
 
 ### Step 2c: Save Raw Data
 
@@ -188,7 +249,7 @@ Also write a manifest summarizing the extraction:
     "apps": 15
   },
   "paginationLimit": 100,
-  "sortOrder": "created_at:asc"
+  "sortOrder": "createdAt:asc"
 }
 ```
 
@@ -249,7 +310,7 @@ export class GraphQLClient {
 
 ## 6. Handling Large Payloads
 
-Articles with Base64 images embedded in the `splash` field and `body` field can produce very large GraphQL responses. A single article with a splash image and 3 inline images could easily be 5–10 MB of Base64 text.
+Articles with Base64 images embedded in the `splash` field, `thumbnail` field, `images` field, and `markdown` field can produce very large GraphQL responses. A single article with a splash image, thumbnail, and inline images could easily be 5–10 MB of Base64 text.
 
 With ~250 articles, the total raw extract could be **1–3 GB**.
 
@@ -268,7 +329,7 @@ With ~250 articles, the total raw extract could be **1–3 GB**.
 
 Strapi 3's GraphQL API may filter out unpublished (draft) entries by default. If ResearchHub uses draft/publish:
 
-- Check if any articles have `published_at: null` in the REST API but don't appear in GraphQL results.
+- Check if any articles appear in the REST API but don't appear in GraphQL results (the actual schemas don't have a `published_at` field, but Strapi 3 may still filter based on a `status` field or internal draft state).
 - If so, use the REST API as a fallback for unpublished entries, or query Strapi 3's admin GraphQL endpoint (which returns all entries regardless of publish state).
 
 Since we're migrating all content with `draftAndPublish: false` in Strapi 5, we want everything — published or not.
@@ -277,13 +338,17 @@ Since we're migrating all content with `draftAndPublish: false` in Strapi 5, we 
 
 Articles may have empty `datasets` or `apps` arrays. The extraction handles this naturally — empty arrays are valid JSON. The transform step doesn't need special handling for these.
 
-### Null Splash Field
+### Null Splash / Thumbnail / Image Fields
 
-Some articles may not have a splash image (field is `null` or empty string). The extraction captures this as-is. Phase 3's Base64 scanner skips articles with no splash data.
+Some articles may not have a splash image, thumbnail, or images (field is `null` or empty string). Similarly, some apps may have a `null` `image` field. The extraction captures these as-is. Phase 3's Base64 scanner skips records with no image data in these fields.
 
-### Special Characters in Body
+### Special Characters in Markdown
 
-Markdown body fields may contain characters that need careful JSON encoding: backslashes, quotes, newlines, Unicode. `JSON.stringify` handles all of these correctly. The risk is in the reverse direction — when loading into Strapi 5, ensure the API accepts the content without double-escaping.
+Markdown fields (`markdown` on articles, `description` on datasets and apps) may contain characters that need careful JSON encoding: backslashes, quotes, newlines, Unicode. `JSON.stringify` handles all of these correctly. The risk is in the reverse direction — when loading into Strapi 5, ensure the API accepts the content without double-escaping.
+
+### Images Field (JSON) May Contain Base64
+
+The article `images` field is JSON type and may contain Base64 data or image references in an array/object structure. The exact format needs investigation during the Phase 3 scan phase. Extract it as-is and analyze the structure before building the transform logic.
 
 ### MongoDB ObjectId Format
 
@@ -297,11 +362,11 @@ All `id` fields in the extracted data will be MongoDB ObjectId strings (e.g., `"
 |-------|-------|----------|
 | Connection refused on port 1337 | Strapi 3 not running | Start Strapi 3: `cd strapi3-project && npm run develop` |
 | GraphQL query returns `errors` | Invalid field name in query | Check field name against `strapi3-models.json`; adjust query |
-| Fewer records than expected | Pagination bug or draft filtering | Reduce `limit`, check `published_at` filtering, try REST count endpoint |
+| Fewer records than expected | Pagination bug or draft filtering | Reduce `limit`, check draft filtering, try REST count endpoint |
 | More records than expected | Records created during extraction | Re-run extraction; consider putting Strapi 3 in read-only mode |
 | Response timeout | Large Base64 payloads causing slow responses | Increase timeout, reduce pagination limit |
 | Out of memory | Too many large articles in memory at once | Reduce pagination limit, stream pages to disk individually |
-| `null` or missing `created_at` / `updated_at` | Field might be named differently in GraphQL vs. model | Check introspection data for actual field name (`created_at` vs. `createdAt`) |
+| `null` or missing `createdAt` / `updatedAt` | Timestamp fields not returned by GraphQL | Verify field names match the schema (`createdAt`/`updatedAt` — camelCase, not snake_case) |
 
 ---
 
@@ -312,10 +377,14 @@ All `id` fields in the extracted data will be MongoDB ObjectId strings (e.g., `"
 | All articles extracted | Count in `manifest.json` matches REST `/articles/count` | Counts equal |
 | All datasets extracted | Count in `manifest.json` matches REST `/datasets/count` | Counts equal |
 | All apps extracted | Count in `manifest.json` matches REST `/apps/count` | Counts equal |
-| Timestamps present | Spot check 10 articles in `articles.json` | Every record has `created_at` and `updated_at` (non-null) |
-| Relations captured | Spot check 10 articles with known relations | `datasets` and `apps` arrays contain expected related entry IDs |
-| Base64 data present | Spot check articles with known splash images | `splash` field contains `data:image/` prefix |
-| Media references captured | Spot check datasets with files | `datafile` object contains `url`, `name`, `mime` |
+| Timestamps present | Spot check 10 articles in `articles.json` | Every record has `createdAt` and `updatedAt` (non-null) |
+| Article relations captured | Spot check 10 articles with known relations | `datasets` and `apps` arrays contain expected related entry IDs |
+| Dataset relations captured | Spot check 10 datasets with known relations | `apps` and `articles` arrays contain expected related entry IDs |
+| App relations captured | Spot check 10 apps with known relations | `datasets` and `articles` arrays contain expected related entry IDs |
+| Base64 data present | Spot check articles with known splash images | `splash` and possibly `thumbnail` fields contain `data:image/` prefix |
+| App image field captured | Spot check apps with known images | `image` field contains Base64 data or is `null` |
+| Article media references | Spot check articles with uploaded files | `mainfile` and/or `extrafile` objects contain `url`, `name`, `mime` |
+| Dataset media references | Spot check datasets with files | `datafile` object contains `url`, `name`, `mime` |
 | File integrity | Parse each JSON file with `JSON.parse()` | No parse errors |
 | IDs are ObjectIds | Spot check `id` fields | Format matches `/^[a-f0-9]{24}$/` |
 
@@ -331,11 +400,15 @@ Before proceeding to Phase 3, every item below must pass. Items marked **(auto)*
 - [ ] **(auto)** Dataset count in `data/raw/datasets.json` matches `GET /datasets/count` from Strapi 3
 - [ ] **(auto)** App count in `data/raw/apps.json` matches `GET /apps/count` from Strapi 3
 - [ ] **(script)** Every record in all 3 files has a non-null `id` field matching MongoDB ObjectId format (`/^[a-f0-9]{24}$/`)
-- [ ] **(script)** Every record has `created_at` and `updated_at` fields (non-null)
+- [ ] **(script)** Every record has `createdAt` and `updatedAt` fields (non-null)
 - [ ] **(script)** All 3 JSON files parse without errors (`JSON.parse` succeeds)
 - [ ] **(script)** No duplicate `id` values within any single file
 - [ ] **(script)** Article `datasets` and `apps` relation arrays are present (even if empty)
+- [ ] **(script)** Article `mainfile` and `extrafile` media references (when non-null) contain `url`, `name`, `mime`, `ext`
 - [ ] **(script)** Dataset `datafile` objects (when non-null) contain `url`, `name`, `mime`, `ext`
+- [ ] **(script)** Dataset `apps` and `articles` relation arrays are present (even if empty)
+- [ ] **(script)** App `datasets` and `articles` relation arrays are present (even if empty)
+- [ ] **(script)** App `image` field is captured (string or null)
 - [ ] **(script)** Manifest `data/raw/manifest.json` exists and counts match file contents
 
 ### Parity Assertions
@@ -346,10 +419,10 @@ These confirm the extraction faithfully captured all source data:
 |-----------|---------------|
 | Record counts match exactly | Compare `manifest.json` counts against Strapi 3 REST `/count` endpoints |
 | No records lost to pagination | Total extracted = sum of all pages; no page returned 0 records unexpectedly |
-| No records lost to draft filtering | If Strapi 3 has `draftAndPublish`, compare GQL count vs REST count (REST may include drafts GQL filters out) |
-| Timestamps captured for every record | Count records with non-null `created_at` = total record count |
-| Relations captured | For articles with known relations (spot check 10), verify `datasets`/`apps` arrays are non-empty |
-| Base64 data present | For articles with known splash images (spot check 10), verify `splash` field contains `data:image/` or raw Base64 |
+| No records lost to draft filtering | Compare GQL count vs REST count (REST may include drafts that GQL filters out based on `status` field) |
+| Timestamps captured for every record | Count records with non-null `createdAt` = total record count |
+| Relations captured | For articles with known relations (spot check 10), verify `datasets`/`apps` arrays are non-empty; same for dataset and app relations |
+| Base64 data present | For articles with known splash images (spot check 10), verify `splash` (and possibly `thumbnail`) field contains `data:image/` or raw Base64 |
 | Media references complete | For datasets with files (spot check 10), verify `datafile.url` is non-null |
 
 ### Recommended: `scripts/02-verify.js`
@@ -362,7 +435,7 @@ node scripts/02-verify.js
 
 This script should:
 1. Read all 3 raw JSON files and the manifest
-2. Validate every record has `id`, `created_at`, `updated_at`
+2. Validate every record has `id`, `createdAt`, `updatedAt`
 3. Check for duplicate IDs
 4. Verify manifest counts match actual file record counts
 5. Hit Strapi 3 REST count endpoints and compare
@@ -392,9 +465,9 @@ You are building Phase 2 of a Strapi 3 → Strapi 5 migration tool for a project
 ## Context
 
 ResearchHub has 3 content types in Strapi 3 (MongoDB):
-- `article` (~250 records) — has a `splash` field (Base64 text), `body` (markdown with inline Base64 images), and m2m relations to `datasets` and `apps`
-- `dataset` — has a `datafile` media field (Excel files in the Strapi 3 media library)
-- `app` — flat data (title, summary, url), no media
+- `article` (~250 records) — has `splash` and `thumbnail` fields (string, likely Base64), `markdown` field (text, with inline Base64 images), `images` field (JSON, may contain Base64), `mainfile` and `extrafile` (media uploads), and m2m relations to `datasets` and `apps`
+- `dataset` — has a `datafile` media field (Excel files in the Strapi 3 media library), many additional fields (sources, unit, timeperiod, notes, variables, project, etc.), and m2m relations to `apps` and `articles`
+- `app` — has `image` field (string, likely Base64), `description` (text), and 2 m2m relations to `datasets` and `articles`
 
 Strapi 3 runs at http://localhost:1337 with GraphQL enabled.
 Phase 1 has already run, producing:
@@ -417,10 +490,11 @@ Export a `GraphQLClient` class that:
 This script:
 - Reads `data/introspection/strapi3-models.json` to know which fields to query
 - For each content type (articles, datasets, apps), dynamically builds a GraphQL query that requests all scalar fields plus one level of relation/media expansion
-- Always includes `id`, `created_at`, `updated_at`, `published_at` on every content type
-- For the `article` type, expands `datasets { id title slug }` and `apps { id title }`
-- For the `dataset` type, expands `datafile { id url name mime size ext }`
-- Paginates using `start` and `limit` (100 per page), sorted by `created_at:asc`
+- Always includes `id`, `createdAt`, `updatedAt` on every content type (no `published_at` — the schemas don't have it)
+- For the `article` type, expands `datasets { id title slug }`, `apps { id title }`, `mainfile { id url name mime size ext }`, and `extrafile { id url name mime size ext }`
+- For the `dataset` type, expands `datafile { id url name mime size ext }`, `apps { id title }`, and `articles { id title }`
+- For the `app` type, expands `datasets { id title }` and `articles { id title }`
+- Paginates using `start` and `limit` (100 per page), sorted by `createdAt:asc`
 - Continues fetching until a page returns fewer than `limit` results
 - Saves each content type to `data/raw/{contentType}.json` (pretty-printed JSON)
 - Saves an extraction manifest to `data/raw/manifest.json` with counts, timestamp, and source URL
@@ -438,5 +512,5 @@ This script:
 - Create `data/raw/` directory recursively if it doesn't exist
 - Runnable with `node scripts/02-extract.js`
 - Handle the case where articles contain very large Base64 strings (multi-MB responses) — use appropriate timeout
-- Sort all queries by `created_at:asc` for deterministic pagination
+- Sort all queries by `createdAt:asc` for deterministic pagination
 ```

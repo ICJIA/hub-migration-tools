@@ -11,7 +11,7 @@
 
 ## 1. Objective
 
-Extract all Base64-encoded images from articles (splash fields and inline markdown), decode them to binary files, upload them to the Strapi 5 media library, and rewrite all content to reference the new media URLs. Also migrate dataset Excel files from the Strapi 3 media library to Strapi 5. At the end of this phase, all media exists in Strapi 5 and all content is transformed and ready for loading.
+Extract all Base64-encoded images from articles and apps, decode them to binary files, upload them to the Strapi 5 media library, and rewrite all content to reference the new media URLs. Article has THREE potential Base64 fields: `splash`, `thumbnail` (both string fields, likely Base64), and `images` (json — needs investigation, may contain Base64 data or image references). The article body field is called `markdown` (not `body`), and inline Base64 images in that field must also be extracted. Article also has `mainfile` and `extrafile` media upload fields that need download+reupload (same pattern as dataset `datafile`). App has an `image` field (string, likely Base64) that needs the same extraction pipeline. App also requires full transformation (it has description, contributors, categories, tags, relations, and other fields — not "flat data"). Also migrate dataset Excel files and article media uploads from the Strapi 3 media library to Strapi 5. At the end of this phase, all media exists in Strapi 5 and all content is transformed and ready for loading.
 
 ---
 
@@ -30,9 +30,9 @@ Extract all Base64-encoded images from articles (splash fields and inline markdo
 
 | Input | Location | Description |
 |-------|----------|-------------|
-| Raw articles | `data/raw/articles.json` | ~250 articles with Base64 splash + inline images |
+| Raw articles | `data/raw/articles.json` | ~250 articles with Base64 splash/thumbnail/images + inline markdown images + mainfile/extrafile media |
 | Raw datasets | `data/raw/datasets.json` | Datasets with `datafile` media references |
-| Raw apps | `data/raw/apps.json` | Flat app data |
+| Raw apps | `data/raw/apps.json` | Apps with Base64 `image` field, description, contributors, categories, tags, relations |
 | Field map | `config/field-map.json` | Field name/type mapping |
 | Strapi 3 uploads | `http://localhost:1337/uploads/` | Source for dataset Excel files |
 | Strapi 5 upload endpoint | `http://localhost:1338/api/upload` | Target for all media uploads |
@@ -57,21 +57,31 @@ Extract all Base64-encoded images from articles (splash fields and inline markdo
 **Script:** `scripts/03a-scan-base64.js`  
 **Library:** `lib/base64-scanner.js`
 
-Scan every article in `data/raw/articles.json` for Base64 image data in two locations:
+Scan every article in `data/raw/articles.json` and every app in `data/raw/apps.json` for Base64 image data:
+
+**Article fields to scan:**
 
 **1. Splash field.** Check if the `splash` field is non-null and contains a Base64 data URI. Detection: the string starts with `data:image/` or contains a raw Base64 payload (no data URI prefix — some Strapi setups store just the Base64 without the `data:image/...;base64,` header).
 
-**2. Inline markdown images.** Scan the `body` field for markdown images with Base64 data URIs using the regex:
+**2. Thumbnail field.** Same detection logic as splash — the `thumbnail` is a string field that follows the same Base64 pattern as `splash`.
+
+**3. Images field (JSON).** The `images` field is JSON — investigate its contents. It may contain Base64 data, image references, or structured image metadata. Log the structure of non-null `images` fields for manual review.
+
+**4. Inline markdown images.** Scan the `markdown` field for markdown images with Base64 data URIs using the regex:
 
 ```javascript
 const MARKDOWN_BASE64_RE = /!\[([^\]]*)\]\(data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)\)/g;
 ```
 
-**3. HTML fallback scan.** Also check for `<img>` tags with Base64 `src` attributes as a safety net:
+**5. HTML fallback scan.** Also check the `markdown` field for `<img>` tags with Base64 `src` attributes as a safety net:
 
 ```javascript
 const HTML_BASE64_RE = /<img[^>]+src="data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)"[^>]*>/g;
 ```
+
+**App field to scan:**
+
+**6. App image field.** Check if the `image` field on each app is non-null and contains a Base64 data URI or raw Base64 payload (same detection logic as article splash/thumbnail).
 
 For each image found, record an entry in the manifest:
 
@@ -103,8 +113,11 @@ For each image found, record an entry in the manifest:
   "summary": {
     "totalImages": 412,
     "splashImages": 230,
+    "thumbnailImages": 225,
     "inlineImages": 182,
+    "appImages": 15,
     "articlesWithNoSplash": 20,
+    "articlesWithNoThumbnail": 25,
     "articlesWithNoInlineImages": 95,
     "byMimeType": {
       "image/png": 280,
@@ -119,8 +132,10 @@ For each image found, record an entry in the manifest:
 **Filename convention:**
 
 - Splash: `{slug}-splash.{ext}`
+- Thumbnail: `{slug}-thumbnail.{ext}`
 - Inline: `{slug}-{NNN}.{ext}` (zero-padded 3-digit index)
-- If slug is missing or empty, fall back to `article-{legacyId}-splash.{ext}`
+- App image: `app-{slug}-image.{ext}`
+- If slug is missing or empty, fall back to `article-{legacyId}-splash.{ext}` (or `-thumbnail`, etc.)
 - Sanitize slugs: replace any non-alphanumeric characters (except hyphens) with hyphens, truncate to 80 chars
 
 **MIME type detection:**
@@ -137,10 +152,13 @@ Save manifest to `data/media/manifest.json`.
 **Console output:**
 ```
 Scanning 250 articles for Base64 images...
-  Article 1/250: violent-crime-trends-2024 — 1 splash + 3 inline
-  Article 2/250: recidivism-study-2023 — 1 splash + 0 inline
+  Article 1/250: violent-crime-trends-2024 — 1 splash + 1 thumbnail + 3 inline
+  Article 2/250: recidivism-study-2023 — 1 splash + 1 thumbnail + 0 inline
   ...
-Scan complete: 412 images found (230 splash, 182 inline)
+Scanning apps for Base64 images...
+  App 1/30: sentencing-dashboard — 1 image
+  ...
+Scan complete: 412 images found (230 splash, 225 thumbnail, 182 inline, 15 app images)
 Manifest saved to data/media/manifest.json
 ```
 
@@ -153,7 +171,7 @@ Manifest saved to data/media/manifest.json
 
 Read each entry in `data/media/manifest.json`. For each image:
 
-1. Extract the Base64 payload from the raw article data (re-read `data/raw/articles.json`).
+1. Extract the Base64 payload from the raw article data (re-read `data/raw/articles.json`) or app data (`data/raw/apps.json`).
 2. Strip any whitespace/newlines from the Base64 string (some encoders wrap at 76 chars).
 3. Strip the `data:image/...;base64,` prefix if present.
 4. Decode using `Buffer.from(base64String, 'base64')`.
@@ -290,15 +308,19 @@ Where `42` is the Strapi 5 media ID from `data/maps/media.json`. When loading vi
 
 If the article had no splash image (null/empty), set `splash` to `null`.
 
-**2. Body field → rewritten markdown.**
+**2. Thumbnail field → media relation.**
 
-Find each `![alt](data:image/...;base64,...)` in the body and replace with `![alt](/uploads/filename.ext)`:
+Same as splash — the `thumbnail` field changes from a text field containing Base64 to a media relation ID. If the article had no thumbnail (null/empty), set `thumbnail` to `null`.
+
+**3. Markdown field → rewritten markdown.**
+
+Find each `![alt](data:image/...;base64,...)` in the `markdown` field and replace with `![alt](/uploads/filename.ext)`:
 
 ```javascript
-function rewriteMarkdownImages(body, articleId, mediaMap) {
+function rewriteMarkdownImages(markdown, articleId, mediaMap) {
   let imageIndex = 0;
 
-  return body.replace(MARKDOWN_BASE64_RE, (match, altText, mimeSubtype, base64Data) => {
+  return markdown.replace(MARKDOWN_BASE64_RE, (match, altText, mimeSubtype, base64Data) => {
     const filename = getFilenameForInlineImage(articleId, imageIndex);
     const mediaEntry = mediaMap[filename];
     imageIndex++;
@@ -313,28 +335,45 @@ function rewriteMarkdownImages(body, articleId, mediaMap) {
 }
 ```
 
-Also run the HTML `<img>` fallback replacement for any HTML-style Base64 images found in the body.
+Also run the HTML `<img>` fallback replacement for any HTML-style Base64 images found in the `markdown` field.
 
-**3. Map remaining fields.**
+**4. Map remaining fields.**
 
 Apply the field map from `config/field-map.json` to rename/convert any other fields. Key mappings:
 
 - `id` → `legacyId` (store the MongoDB ObjectId)
-- `created_at` / `createdAt` → `_originalCreatedAt` (preserved for Phase 4 timestamp fix, not sent to the API)
-- `updated_at` / `updatedAt` → `_originalUpdatedAt` (same)
-- `published_at` → dropped (draftAndPublish is disabled in Strapi 5)
-- Relation fields (`datasets`, `apps`) → preserve the array of related IDs for Phase 4 relation linking
+- `createdAt` → `_originalCreatedAt` (preserved for Phase 4 timestamp fix, not sent to the API)
+- `updatedAt` → `_originalUpdatedAt` (same)
+- `thumbnail` → media ID (same processing as splash — extract Base64, upload, replace with Strapi 5 media ID)
+- `mainfile` / `extrafile` → preserve media references for download+reupload (same pattern as dataset `datafile`)
+- Relation fields (`datasets`, `apps`) → preserve the array of related IDs as `_relatedDatasetIds` and `_relatedAppIds` for Phase 4 relation linking
 
-**4. Write transformed articles.**
+**5. Write transformed articles.**
 
 ```json
 [
   {
     "legacyId": "507f1f77bcf86cd799439011",
     "title": "Violent Crime Trends 2024",
+    "status": "published",
     "slug": "violent-crime-trends-2024",
-    "body": "# Introduction\n\nThis report examines...\n\n![Chart showing decline](/uploads/violent-crime-trends-2024-001.jpg)\n\n...",
+    "date": "2024-03-15",
+    "external": false,
+    "categories": ["crime", "statistics"],
+    "tags": ["violent-crime", "trends"],
+    "authors": ["John Smith"],
     "splash": 42,
+    "thumbnail": 43,
+    "images": null,
+    "abstract": "This report examines violent crime trends across Illinois...",
+    "markdown": "# Introduction\n\nThis report examines...\n\n![Chart showing decline](/uploads/violent-crime-trends-2024-001.jpg)\n\n...",
+    "mainfiletype": "pdf",
+    "funding": "Grant #12345",
+    "citation": "Smith, J. (2024). Violent Crime Trends.",
+    "doi": "10.1234/example",
+    "hideFromBanner": false,
+    "mainfile": 90,
+    "extrafile": null,
     "_originalCreatedAt": "2024-03-15T10:30:00.000Z",
     "_originalUpdatedAt": "2024-06-01T14:22:00.000Z",
     "_relatedDatasetIds": ["60b8d295f1d2c72a4c9e1234", "60b8d295f1d2c72a4c9e5678"],
@@ -347,13 +386,13 @@ Fields prefixed with `_` are metadata consumed by Phase 4 scripts but not sent d
 
 Save to `data/transformed/articles.json`.
 
-**Post-rewrite verification:** After rewriting all articles, scan every transformed `body` field for the string `data:image/`. If any matches are found, log them as warnings — these are Base64 images that were missed by the rewrite process.
+**Post-rewrite verification:** After rewriting all articles, scan every transformed `markdown` field for the string `data:image/`. If any matches are found, log them as warnings — these are Base64 images that were missed by the rewrite process.
 
 **Console output:**
 ```
 Rewriting 250 articles...
-  Article 1/250: violent-crime-trends-2024 — splash ✓, 3 inline images ✓
-  Article 2/250: recidivism-study-2023 — splash ✓, 0 inline images
+  Article 1/250: violent-crime-trends-2024 — splash ✓, thumbnail ✓, 3 inline images ✓, mainfile ✓
+  Article 2/250: recidivism-study-2023 — splash ✓, thumbnail ✓, 0 inline images
   ...
 Rewrite complete: 250 articles processed
 Post-rewrite scan: 0 Base64 remnants found ✓
@@ -364,7 +403,9 @@ Saved to data/transformed/articles.json
 
 ### Step 3e: Migrate Dataset Media
 
-**Script:** `scripts/03e-transform.js` (handles datasets and apps together)
+**Script:** `scripts/03e-transform.js` (handles datasets, article media files, and apps together)
+
+**Dataset media:**
 
 For each dataset in `data/raw/datasets.json`:
 
@@ -375,22 +416,45 @@ For each dataset in `data/raw/datasets.json`:
 5. Record the mapping in `data/maps/media.json`.
 6. In the transformed dataset JSON, set `datafile` to the new Strapi 5 media ID.
 
+**Article media files (mainfile/extrafile):**
+
+For each article in `data/raw/articles.json`:
+
+1. Check if `mainfile` and/or `extrafile` fields are non-null and contain a media reference with a `url`.
+2. Download each file from Strapi 3: `GET http://localhost:1337{mainfile.url}` (same pattern as dataset datafile).
+3. Save the downloaded file to `data/media/files/{original-filename}`.
+4. Upload to Strapi 5 via `/api/upload`.
+5. Record the mapping in `data/maps/media.json`.
+6. In the transformed article JSON, set `mainfile`/`extrafile` to the new Strapi 5 media ID.
+
 **Transformed dataset:**
 
 ```json
 {
   "legacyId": "60b8d295f1d2c72a4c9e1234",
   "title": "Illinois Crime Statistics 2023",
+  "status": "published",
   "slug": "illinois-crime-statistics-2023",
+  "date": "2023-11-01",
+  "external": false,
+  "categories": ["crime", "statistics"],
+  "tags": ["illinois", "annual"],
+  "project": true,
+  "sources": [{"name": "ISP", "url": "https://isp.illinois.gov"}],
+  "unit": "incidents",
+  "timeperiod": {"start": "2023-01-01", "end": "2023-12-31"},
   "description": "Annual crime data compiled from...",
+  "notes": [],
+  "variables": [{"name": "offense_type", "type": "string"}],
+  "funding": "Grant #12345",
+  "citation": "ICJIA (2023). Illinois Crime Statistics.",
   "datafile": 88,
   "_originalCreatedAt": "2023-11-01T09:00:00.000Z",
-  "_originalUpdatedAt": "2024-01-15T11:30:00.000Z",
-  "_relatedArticleIds": []
+  "_originalUpdatedAt": "2024-01-15T11:30:00.000Z"
 }
 ```
 
-Note: Datasets don't have a forward relation to articles (the relation is defined on the article side), so `_relatedArticleIds` will be empty. Relations are linked from the article side in Phase 4.
+Note: Dataset relations to articles and apps are defined on the article/app side (article.datasets is dominant, app.datasets is dominant), so dataset does not carry forward relation IDs. Relations are linked from the article/app side in Phase 4.
 
 Save to `data/transformed/datasets.json`.
 
@@ -398,11 +462,13 @@ Save to `data/transformed/datasets.json`.
 
 ### Step 3f: Transform Apps
 
-Apps have no media and no complex fields. For each app in `data/raw/apps.json`:
+Apps have an `image` field (string, likely Base64) that needs the same extraction pipeline as article splash/thumbnail. Apps also have multiple data fields and TWO many-to-many relations. For each app in `data/raw/apps.json`:
 
 1. Map `id` → `legacyId`.
-2. Copy `title`, `summary`, `url` directly.
-3. Preserve timestamps as `_originalCreatedAt` / `_originalUpdatedAt`.
+2. Check the `image` field — if it contains Base64 data, look up the uploaded media ID from `data/maps/media.json` and replace with the Strapi 5 media ID. If it's not Base64 (e.g., a URL), preserve the value as-is.
+3. Copy all fields: `title`, `status`, `slug`, `date`, `external`, `categories` (json), `tags` (json), `contributors` (json), `description` (text), `url`, `funding`, `citation`.
+4. Preserve timestamps as `_originalCreatedAt` / `_originalUpdatedAt`.
+5. Preserve relation IDs: `datasets` → `_relatedDatasetIds`, `articles` → `_relatedArticleIds` (app is the dominant side of both relations — Phase 4 will link these).
 
 **Transformed app:**
 
@@ -410,10 +476,22 @@ Apps have no media and no complex fields. For each app in `data/raw/apps.json`:
 {
   "legacyId": "60b8d295f1d2c72a4c9eabcd",
   "title": "Illinois Sentence Policy Dashboard",
-  "summary": "Interactive visualization of sentencing data across Illinois counties.",
+  "status": "published",
+  "slug": "sentencing-dashboard",
+  "date": "2023-06-15",
+  "external": false,
+  "categories": ["corrections", "sentencing"],
+  "tags": ["dashboard", "interactive"],
+  "contributors": ["Jane Doe"],
+  "image": 95,
+  "description": "Interactive visualization of sentencing data across Illinois counties.",
   "url": "https://public.tableau.com/views/SentencingDashboard",
+  "funding": "Grant #67890",
+  "citation": "ICJIA (2023). Sentencing Dashboard.",
   "_originalCreatedAt": "2023-06-15T08:00:00.000Z",
-  "_originalUpdatedAt": "2023-06-15T08:00:00.000Z"
+  "_originalUpdatedAt": "2023-06-15T08:00:00.000Z",
+  "_relatedDatasetIds": ["60b8d295f1d2c72a4c9e1234"],
+  "_relatedArticleIds": ["507f1f77bcf86cd799439011"]
 }
 ```
 
@@ -430,8 +508,9 @@ Save to `data/transformed/apps.json`.
 | Strapi 5 upload rejects a file | File too large, unsupported MIME type, or Strapi config limits | Check Strapi 5 upload settings (`config/plugins.js` — `sizeLimit`, `allowedTypes`); adjust and retry |
 | Dataset Excel file download fails (404) | File missing from Strapi 3 uploads directory | Log the missing file with dataset ID; skip and flag for manual resolution |
 | Strapi 5 already has a file with the same name | Re-running the script after partial completion | Idempotency check skips existing files; no action needed |
-| Memory issues processing large articles | Multiple large Base64 strings in a single article body | Process articles one at a time rather than loading all into memory |
-| Markdown rewrite corrupts non-image content | Regex matches something it shouldn't | Diff original vs. rewritten body; only `![...](data:image/...)` patterns should change |
+| Memory issues processing large articles | Multiple large Base64 strings in a single article markdown | Process articles one at a time rather than loading all into memory |
+| Markdown rewrite corrupts non-image content | Regex matches something it shouldn't | Diff original vs. rewritten markdown; only `![...](data:image/...)` patterns should change |
+| Article mainfile/extrafile download fails (404) | File missing from Strapi 3 uploads directory | Log the missing file with article ID; skip and flag for manual resolution |
 
 ---
 
@@ -442,9 +521,12 @@ Save to `data/transformed/apps.json`.
 | All Base64 images found | Manifest image count is plausible (~1–6 per article average) | Manifest summary looks reasonable |
 | All files decoded | `ls data/media/files/ | wc -l` matches manifest `totalImages` minus failures | Counts match |
 | All files uploaded | Count entries in `data/maps/media.json` matches decoded file count | Counts match |
-| Zero Base64 remnants | Grep all `body` fields in `data/transformed/articles.json` for `data:image/` | Zero matches |
+| Zero Base64 remnants | Grep all `markdown` fields in `data/transformed/articles.json` for `data:image/` | Zero matches |
 | Splash fields are media IDs | Spot check 10 articles in `data/transformed/articles.json` | `splash` is an integer (Strapi 5 media ID), not a Base64 string |
-| Inline images are URLs | Spot check 10 article bodies | Image markdown uses `/uploads/...` URLs, not `data:image/...` |
+| Thumbnail fields are media IDs | Spot check 10 articles in `data/transformed/articles.json` | `thumbnail` is an integer (Strapi 5 media ID), not a Base64 string |
+| App image fields are media IDs | Spot check apps with non-null `image` in `data/transformed/apps.json` | `image` is an integer (Strapi 5 media ID), not a Base64 string |
+| Inline images are URLs | Spot check 10 article `markdown` fields | Image markdown uses `/uploads/...` URLs, not `data:image/...` |
+| Article mainfile/extrafile uploaded | Count articles with non-null `mainfile`/`extrafile` in raw vs. transformed | Counts match; all have integer media IDs |
 | Dataset files uploaded | Count datasets with non-null `datafile` in raw vs. transformed | Counts match; all have integer media IDs |
 | Media accessible in Strapi 5 | Spot check 10 media URLs with `curl http://localhost:1338{url}` | HTTP 200 with correct content-type |
 | Legacy IDs present | Spot check all three transformed JSON files | Every record has a `legacyId` string matching MongoDB ObjectId format |
@@ -477,10 +559,14 @@ Phase 3 is the most complex phase. Before proceeding to Phase 4, every item belo
 **Rewrite:**
 
 - [ ] **(auto)** `data/transformed/articles.json` exists with same record count as `data/raw/articles.json`
-- [ ] **(auto)** Zero `data:image/` substrings in any `body` field across all transformed articles
+- [ ] **(auto)** Zero `data:image/` substrings in any `markdown` field across all transformed articles
 - [ ] **(auto)** Every article that had a non-null `splash` in raw data now has an integer `splash` value in transformed data
 - [ ] **(auto)** Every article that had a null/empty `splash` in raw data has `splash: null` in transformed data
-- [ ] **(auto)** All inline image references in transformed `body` fields use `/uploads/` URLs (not Base64)
+- [ ] **(auto)** Every article that had a non-null `thumbnail` in raw data now has an integer `thumbnail` value in transformed data
+- [ ] **(auto)** Every article that had a null/empty `thumbnail` in raw data has `thumbnail: null` in transformed data
+- [ ] **(auto)** Every article that had a non-null `mainfile` in raw data now has an integer `mainfile` value in transformed data
+- [ ] **(auto)** Every article that had a non-null `extrafile` in raw data now has an integer `extrafile` value in transformed data
+- [ ] **(auto)** All inline image references in transformed `markdown` fields use `/uploads/` URLs (not Base64)
 - [ ] **(auto)** Every transformed article has: `legacyId`, `_originalCreatedAt`, `_originalUpdatedAt`
 
 **Dataset & App Transform:**
@@ -488,6 +574,8 @@ Phase 3 is the most complex phase. Before proceeding to Phase 4, every item belo
 - [ ] **(auto)** `data/transformed/datasets.json` exists with same record count as `data/raw/datasets.json`
 - [ ] **(auto)** Every dataset with a non-null `datafile` in raw data has an integer `datafile` value in transformed data
 - [ ] **(auto)** `data/transformed/apps.json` exists with same record count as `data/raw/apps.json`
+- [ ] **(auto)** Every app that had a non-null Base64 `image` in raw data now has an integer `image` value in transformed data
+- [ ] **(auto)** Every app has `_relatedDatasetIds` and `_relatedArticleIds` arrays
 - [ ] **(auto)** Every record in all 3 transformed files has: `legacyId` matching MongoDB ObjectId format
 
 ### Parity Assertions
@@ -498,9 +586,13 @@ Phase 3 is the most complex phase. Before proceeding to Phase 4, every item belo
 | No uploads lost | Media map entry count = decoded file count |
 | No articles gained or lost | `data/transformed/articles.json` record count = `data/raw/articles.json` record count |
 | Splash parity | Count of non-null `splash` in raw = count of integer `splash` in transformed |
+| Thumbnail parity | Count of non-null `thumbnail` in raw = count of integer `thumbnail` in transformed |
+| App image parity | Count of non-null Base64 `image` in raw apps = count of integer `image` in transformed apps |
+| Mainfile parity | Count of non-null `mainfile` in raw = count of integer `mainfile` in transformed |
+| Extrafile parity | Count of non-null `extrafile` in raw = count of integer `extrafile` in transformed |
 | Dataset file parity | Count of non-null `datafile` in raw = count of integer `datafile` in transformed |
-| Body content preserved | For 10 random articles: non-image text in `body` is identical between raw and transformed (only image references changed) |
-| Timestamps carried forward | For all records: `_originalCreatedAt` in transformed matches `created_at` in raw |
+| Markdown content preserved | For 10 random articles: non-image text in `markdown` is identical between raw and transformed (only image references changed) |
+| Timestamps carried forward | For all records: `_originalCreatedAt` in transformed matches `createdAt` in raw |
 | Relations carried forward | For all articles: `_relatedDatasetIds` count in transformed matches `datasets` array length in raw |
 
 ### Recommended: `scripts/03-verify.js`
@@ -514,7 +606,7 @@ node scripts/03-verify.js
 This script should:
 1. Load manifest, media map, and all raw/transformed files
 2. Run all automated checks above
-3. For the body-content parity check: strip all image markdown from both raw and transformed bodies, then compare — non-image content should be identical
+3. For the markdown-content parity check: strip all image markdown from both raw and transformed `markdown` fields, then compare — non-image content should be identical
 4. For media accessibility: HEAD-request a random sample of 20 media URLs (or all, if < 100)
 5. Print pass/fail for each check category (scan, decode, upload, rewrite, dataset, app)
 6. Exit 0 if all pass, exit 1 if any fail
@@ -539,9 +631,9 @@ You are building Phase 3 of a Strapi 3 → Strapi 5 migration tool for a project
 ## Context
 
 ResearchHub has 3 content types:
-- `article` (~250 records) — has a `splash` field (Base64 image stored as text) and a `body` field (markdown with inline Base64 images as `![alt](data:image/...;base64,...)`)
-- `dataset` — has a `datafile` media field pointing to Excel files in Strapi 3's media library
-- `app` — flat data (title, summary, url), no media
+- `article` (~250 records) — has `splash` and `thumbnail` fields (Base64 images stored as string), an `images` field (json, needs investigation), a `markdown` field (text with inline Base64 images as `![alt](data:image/...;base64,...)`), and `mainfile`/`extrafile` media upload fields (same download+reupload pattern as dataset datafile)
+- `dataset` — has `datafile` media field pointing to files in Strapi 3's media library, plus many data fields (categories, tags, sources, unit, timeperiod, variables, notes, project, funding, citation, etc.)
+- `app` — has an `image` field (string, likely Base64), `description` (text), contributors/categories/tags (json), funding, citation, and TWO dominant m2m relations (datasets, articles). Medium complexity — not trivial
 
 Phase 2 has run, producing:
 - `data/raw/articles.json` — all articles with raw Base64 data
@@ -559,12 +651,13 @@ Create six scripts and three library modules:
 
 #### `lib/base64-scanner.js`
 Export functions:
-- `scanSplash(splashField)` — returns `{ found: boolean, mimeType, base64Data }` or null
-- `scanMarkdownImages(body)` — returns array of `{ altText, mimeType, base64Data, matchIndex }` for each Base64 image found
-- `scanHtmlImages(body)` — returns array of `{ mimeType, base64Data }` for any `<img>` tags with Base64 src (safety net)
+- `scanStringField(fieldValue)` — returns `{ found: boolean, mimeType, base64Data }` or null. Works for article `splash`, article `thumbnail`, and app `image` fields (all string fields that may contain Base64)
+- `scanMarkdownImages(markdown)` — returns array of `{ altText, mimeType, base64Data, matchIndex }` for each Base64 image found in the `markdown` field
+- `scanHtmlImages(markdown)` — returns array of `{ mimeType, base64Data }` for any `<img>` tags with Base64 src (safety net)
+- `scanJsonField(jsonValue)` — inspects article `images` (json) field and logs its structure; returns any Base64 data found
 
 Detection rules:
-- Splash: field starts with `data:image/` OR is a raw Base64 string (check if it decodes to valid image magic bytes)
+- String fields (splash, thumbnail, app image): field starts with `data:image/` OR is a raw Base64 string (check if it decodes to valid image magic bytes)
 - Markdown: regex `!/\[([^\]]*)\]\(data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)\)/g`
 - HTML: regex `/<img[^>]+src="data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)"[^>]*>/g`
 
@@ -575,20 +668,21 @@ Export functions:
 
 #### `lib/markdown-rewriter.js`
 Export functions:
-- `rewriteMarkdownImages(body, imageMap)` — replaces each `![alt](data:image/...;base64,...)` with `![alt](/uploads/filename.ext)` using the imageMap
-- `rewriteHtmlImages(body, imageMap)` — same for `<img>` tags
-- `checkForRemnants(body)` — returns array of positions where `data:image/` still appears
+- `rewriteMarkdownImages(markdown, imageMap)` — replaces each `![alt](data:image/...;base64,...)` with `![alt](/uploads/filename.ext)` using the imageMap
+- `rewriteHtmlImages(markdown, imageMap)` — same for `<img>` tags
+- `checkForRemnants(markdown)` — returns array of positions where `data:image/` still appears
 
 ### Scripts
 
 #### `scripts/03a-scan-base64.js`
-- Read `data/raw/articles.json`
-- For each article, scan splash field and body field using the scanner library
-- Generate filenames: `{slug}-splash.{ext}` for splash, `{slug}-{NNN}.{ext}` for inline (NNN = zero-padded 3-digit index)
+- Read `data/raw/articles.json` and `data/raw/apps.json`
+- For each article, scan `splash`, `thumbnail`, `images` (json), and `markdown` fields using the scanner library
+- For each app, scan the `image` field using the scanner library
+- Generate filenames: `{slug}-splash.{ext}` for splash, `{slug}-thumbnail.{ext}` for thumbnail, `{slug}-{NNN}.{ext}` for inline (NNN = zero-padded 3-digit index), `app-{slug}-image.{ext}` for app images
 - Sanitize slugs (replace non-alphanumeric except hyphens, truncate to 80 chars)
-- If no slug, use `article-{id}`
+- If no slug, use `article-{id}` or `app-{id}`
 - Save manifest to `data/media/manifest.json` with per-image entries and summary stats
-- Log progress per article
+- Log progress per article and per app
 
 #### `scripts/03b-decode-base64.js`
 - Read `data/media/manifest.json`
@@ -610,15 +704,18 @@ Export functions:
 - Read `data/raw/articles.json` and `data/maps/media.json`
 - For each article:
   - Replace splash Base64 with Strapi 5 media ID (integer)
-  - Rewrite body markdown images with media URLs
+  - Replace thumbnail Base64 with Strapi 5 media ID (integer)
+  - Rewrite `markdown` field inline images with media URLs
+  - Replace `mainfile`/`extrafile` media references with Strapi 5 media IDs
   - Map `id` → `legacyId`
-  - Preserve `created_at`/`updated_at` as `_originalCreatedAt`/`_originalUpdatedAt`
+  - Preserve `createdAt`/`updatedAt` as `_originalCreatedAt`/`_originalUpdatedAt`
+  - Preserve all other fields: title, status, slug, date, external, categories, tags, authors, images, abstract, mainfiletype, funding, citation, doi, hideFromBanner
   - Preserve relation IDs as `_relatedDatasetIds` and `_relatedAppIds` (arrays of Strapi 3 ObjectId strings)
-- After all rewrites, scan all bodies for `data:image/` remnants and warn
+- After all rewrites, scan all `markdown` fields for `data:image/` remnants and warn
 - Save to `data/transformed/articles.json`
 
 #### `scripts/03e-transform.js`
-Handles datasets and apps:
+Handles datasets, article media files, and apps:
 
 **Datasets:**
 - Read `data/raw/datasets.json`
@@ -627,12 +724,24 @@ Handles datasets and apps:
   - Save to `data/media/files/{original-filename}`
   - Upload to Strapi 5 via `/api/upload`
   - Set `datafile` to new Strapi 5 media ID
-- Map `id` → `legacyId`, preserve timestamps
+- Map `id` → `legacyId`, preserve `createdAt`/`updatedAt` as `_originalCreatedAt`/`_originalUpdatedAt`
+- Preserve all fields: title, status, slug, date, external, categories, tags, project, sources, unit, timeperiod, description, notes, variables, funding, citation
 - Save to `data/transformed/datasets.json`
+
+**Article media files:**
+- Read `data/raw/articles.json`
+- For each article with non-null `mainfile` and/or `extrafile`:
+  - Download each file from `http://localhost:1337{mainfile.url}` / `{extrafile.url}`
+  - Save to `data/media/files/{original-filename}`
+  - Upload to Strapi 5 via `/api/upload`
+  - Set `mainfile`/`extrafile` to new Strapi 5 media IDs in the transformed article
 
 **Apps:**
 - Read `data/raw/apps.json`
-- Map `id` → `legacyId`, preserve timestamps, copy all fields
+- Map `id` → `legacyId`, preserve `createdAt`/`updatedAt` as `_originalCreatedAt`/`_originalUpdatedAt`
+- Process `image` field: if Base64, replace with Strapi 5 media ID from `data/maps/media.json`
+- Preserve all fields: title, status, slug, date, external, categories, tags, contributors, description, url, funding, citation
+- Preserve relation IDs: `datasets` → `_relatedDatasetIds`, `articles` → `_relatedArticleIds`
 - Save to `data/transformed/apps.json`
 
 ## Technical Requirements

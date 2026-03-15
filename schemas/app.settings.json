@@ -1,0 +1,65 @@
+{
+  "connection": "default",
+  "collectionName": "app",
+  "info": {
+    "name": "app",
+    "description": ""
+  },
+  "options": {
+    "timestamps": [
+      "createdAt",
+      "updatedAt"
+    ]
+  },
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "date": {
+      "type": "date"
+    },
+    "external": {
+      "type": "boolean"
+    },
+    "categories": {
+      "type": "json"
+    },
+    "tags": {
+      "type": "json"
+    },
+    "contributors": {
+      "type": "json"
+    },
+    "image": {
+      "type": "string"
+    },
+    "description": {
+      "type": "text"
+    },
+    "url": {
+      "type": "string"
+    },
+    "funding": {
+      "type": "string"
+    },
+    "citation": {
+      "type": "string"
+    },
+    "datasets": {
+      "collection": "dataset",
+      "dominant": true,
+      "via": "apps"
+    },
+    "articles": {
+      "collection": "article",
+      "dominant": true,
+      "via": "apps"
+    }
+  }
+}

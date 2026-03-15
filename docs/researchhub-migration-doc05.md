@@ -117,7 +117,7 @@ GET http://localhost:1338/api/articles?fields[0]=legacyId&pagination[pageSize]=1
 
 Scan all text/markdown fields in Strapi 5 for any remaining `data:image/` strings.
 
-Fetch all articles from Strapi 5 (paginated) and check the `body` field and any other text fields for the substring `data:image/`.
+Fetch all articles from Strapi 5 (paginated) and check the `markdown` field (the primary content field, NOT `body`) and other text/string fields that could contain Base64 (e.g., `abstract`, `description`) for the substring `data:image/`.
 
 **Pass criteria:** Zero matches across all records.
 
@@ -128,7 +128,7 @@ Fetch all articles from Strapi 5 (paginated) and check the `body` field and any 
   "status": "PASS",
   "details": {
     "articlesScanned": 250,
-    "fieldsScanned": ["body"],
+    "fieldsScanned": ["markdown", "abstract"],
     "remnantsFound": 0,
     "affectedArticles": []
   }
@@ -139,27 +139,31 @@ If any remnants are found, list the article `legacyId` and the field name.
 
 ---
 
-### Check 4: Splash Image Migration
+### Check 4: Image/Media Field Migration
 
-Verify that every article that had a Base64 splash image in Strapi 3 now has a media relation in Strapi 5.
+Verify that every article that had a splash image, thumbnail, or other media in Strapi 3 now has the corresponding media relation in Strapi 5. Also verify app `image` fields.
 
 **Method:**
-1. Read `data/raw/articles.json` — identify articles where `splash` is non-null and non-empty.
-2. For each such article, fetch from Strapi 5 with `?populate=splash`.
-3. Verify the `splash` field returns a media object (not null).
+1. Read `data/raw/articles.json` — identify articles where `splash`, `thumbnail`, `mainfile`, or `extrafile` is non-null and non-empty.
+2. For each such article, fetch from Strapi 5 with `?populate=splash,thumbnail,mainfile,extrafile`.
+3. Verify the corresponding fields return media objects (not null).
+4. Read `data/raw/apps.json` — identify apps where `image` is non-null and non-empty.
+5. For each such app, fetch from Strapi 5 with `?populate=image`.
+6. Verify the `image` field returns a media object.
 
-**Pass criteria:** Every article that had a splash image in Strapi 3 has a media relation in Strapi 5. Articles that had no splash should have `splash: null` in Strapi 5.
+**Pass criteria:** Every article/app that had a media field in Strapi 3 has the corresponding media relation in Strapi 5. Records that had no media should have `null` in Strapi 5.
 
 **Output:**
 ```json
 {
-  "check": "splash_image_migration",
+  "check": "image_media_migration",
   "status": "PASS",
   "details": {
-    "articlesWithSplashInStrapi3": 230,
-    "articlesWithSplashInStrapi5": 230,
-    "missingInStrapi5": [],
-    "unexpectedInStrapi5": []
+    "articleSplash": { "inStrapi3": 230, "inStrapi5": 230, "missing": [] },
+    "articleThumbnail": { "inStrapi3": 180, "inStrapi5": 180, "missing": [] },
+    "articleMainfile": { "inStrapi3": 100, "inStrapi5": 100, "missing": [] },
+    "articleExtrafile": { "inStrapi3": 25, "inStrapi5": 25, "missing": [] },
+    "appImage": { "inStrapi3": 12, "inStrapi5": 12, "missing": [] }
   }
 }
 ```
@@ -168,11 +172,11 @@ Verify that every article that had a Base64 splash image in Strapi 3 now has a m
 
 ### Check 5: Dataset File Migration
 
-Verify that every dataset with a `datafile` in Strapi 3 has a media relation in Strapi 5.
+Verify that every dataset with a `datafile` in Strapi 3 has a media relation in Strapi 5. Also verify article `mainfile` and `extrafile` fields (file downloads).
 
-**Method:** Same pattern as Check 4 but for datasets and the `datafile` field.
+**Method:** Same pattern as Check 4 but for datasets and the `datafile` field. Additionally, verify article `mainfile` and `extrafile` fields have media relations where they had values in Strapi 3.
 
-**Pass criteria:** All dataset file references intact.
+**Pass criteria:** All dataset file references intact. All article mainfile/extrafile references intact.
 
 ---
 
@@ -205,13 +209,17 @@ Verify that every media file in Strapi 5 is actually accessible via HTTP.
 
 ### Check 7: Relation Integrity
 
-Verify that many-to-many relations between articles and datasets/apps are correct.
+Verify that all three sets of many-to-many relations (the relation triangle) are correct:
+
+1. **Article ↔ dataset** — article is dominant
+2. **App ↔ article** — app is dominant
+3. **App ↔ dataset** — app is dominant
 
 **Method:**
-1. For a sample of articles (all articles, or at least 25%), fetch from Strapi 5 with `?populate=datasets,apps`.
-2. Compare the related entry `legacyId` values against `_relatedDatasetIds` and `_relatedAppIds` in the transformed data.
+1. For all articles, fetch from Strapi 5 with `?populate[datasets][fields][0]=legacyId`. Compare the related dataset `legacyId` values against `_relatedDatasetIds` in the transformed article data.
+2. For all apps, fetch from Strapi 5 with `?populate[articles][fields][0]=legacyId&populate[datasets][fields][0]=legacyId`. Compare the related article `legacyId` values against `_relatedArticleIds` and the related dataset `legacyId` values against `_relatedDatasetIds` in the transformed app data.
 
-**Pass criteria:** For every sampled article, the set of related dataset/app `legacyId` values in Strapi 5 matches the set of `_relatedDatasetIds` / `_relatedAppIds` from the transformed data.
+**Pass criteria:** For every article, the set of related dataset `legacyId` values in Strapi 5 matches `_relatedDatasetIds` from the transformed data. For every app, the set of related article `legacyId` values matches `_relatedArticleIds` and the set of related dataset `legacyId` values matches `_relatedDatasetIds`.
 
 **Output:**
 ```json
@@ -219,11 +227,27 @@ Verify that many-to-many relations between articles and datasets/apps are correc
   "check": "relation_integrity",
   "status": "PASS",
   "details": {
-    "articlesSampled": 250,
-    "relationsChecked": 487,
-    "correctRelations": 487,
-    "missingRelations": [],
-    "extraRelations": []
+    "articleDatasetRelations": {
+      "articlesSampled": 250,
+      "relationsChecked": 387,
+      "correctRelations": 387,
+      "missingRelations": [],
+      "extraRelations": []
+    },
+    "appArticleRelations": {
+      "appsSampled": 15,
+      "relationsChecked": 45,
+      "correctRelations": 45,
+      "missingRelations": [],
+      "extraRelations": []
+    },
+    "appDatasetRelations": {
+      "appsSampled": 15,
+      "relationsChecked": 55,
+      "correctRelations": 55,
+      "missingRelations": [],
+      "extraRelations": []
+    }
   }
 }
 ```
@@ -264,9 +288,9 @@ For a random sample of 10% of articles, compare key fields between Strapi 3 and 
 **Method:**
 1. Select a random 10% sample of articles.
 2. For each, fetch the full record from both Strapi 3 (GraphQL) and Strapi 5 (REST with `?populate=*`).
-3. Compare `title`, `slug`, and the length of `body` (exact body comparison is tricky due to the Base64 → URL rewrite, but length should be shorter in Strapi 5 since URLs are shorter than Base64 strings).
+3. Compare `title`, `slug`, and the length of `markdown` (exact content comparison is tricky due to the Base64 → URL rewrite, but length should be shorter in Strapi 5 since URLs are shorter than Base64 strings).
 
-**Pass criteria:** `title` and `slug` match exactly. `body` length in Strapi 5 is less than or equal to Strapi 3 (Base64 replaced by shorter URLs).
+**Pass criteria:** `title` and `slug` match exactly. `markdown` length in Strapi 5 is less than or equal to Strapi 3 (Base64 replaced by shorter URLs).
 
 ---
 
@@ -277,13 +301,13 @@ Verify no content type has duplicate entries.
 **Method:** Query the SQLite database directly:
 
 ```sql
-SELECT "legacyId", COUNT(*) as cnt 
-FROM articles 
-GROUP BY "legacyId" 
+SELECT "legacyId", COUNT(*) as cnt
+FROM article
+GROUP BY "legacyId"
 HAVING cnt > 1;
 ```
 
-Repeat for datasets and apps.
+Repeat for `dataset` and `app` tables (singular names, matching the `collectionName` from the Strapi 3 schemas).
 
 **Pass criteria:** Zero rows returned for all three queries.
 
@@ -335,14 +359,14 @@ The script prints a summary table at the end:
 
   ✓ Record counts .............. PASS (250 articles, 42 datasets, 15 apps)
   ✓ Legacy ID coverage ......... PASS (307/307 mapped)
-  ✓ Zero Base64 remnants ....... PASS (0 found in 250 articles)
-  ✓ Splash image migration ..... PASS (230/230 migrated)
+  ✓ Zero Base64 remnants ....... PASS (0 found in 250 articles, checked markdown+abstract)
+  ✓ Image/media migration ...... PASS (splash 230/230, thumbnail 180/180, mainfile 100/100, extrafile 25/25, app image 12/12)
   ✓ Dataset file migration ..... PASS (38/38 migrated)
   ✓ Media accessibility ........ PASS (452/452 accessible)
-  ✓ Relation integrity ......... PASS (487/487 correct)
+  ✓ Relation integrity ......... PASS (article→dataset 387, app→article 45, app→dataset 55 — all correct)
   ✓ Timestamp preservation ..... PASS (307/307 match)
-  ✓ Content integrity .......... PASS (25/25 spot checks passed)
-  ✓ No duplicates .............. PASS (0 duplicates)
+  ✓ Content integrity .......... PASS (25/25 spot checks passed, markdown field verified)
+  ✓ No duplicates .............. PASS (0 duplicates in article/dataset/app tables)
 
   Result: 10/10 checks passed — MIGRATION VALIDATED ✓
 
@@ -404,14 +428,14 @@ This is the final checklist before the migration is considered complete and the 
 
 - [ ] Check 1: Record counts — all 3 content types match between Strapi 3 and Strapi 5
 - [ ] Check 2: Legacy ID coverage — every Strapi 3 ID maps to exactly one Strapi 5 record
-- [ ] Check 3: Zero Base64 remnants — no `data:image/` strings in any Strapi 5 text field
-- [ ] Check 4: Splash image migration — all articles with splash images have media relations
-- [ ] Check 5: Dataset file migration — all datasets with files have media relations
+- [ ] Check 3: Zero Base64 remnants — no `data:image/` strings in any Strapi 5 `markdown`, `abstract`, or `description` field
+- [ ] Check 4: Image/media migration — all articles with splash/thumbnail/mainfile/extrafile and all apps with image have media relations
+- [ ] Check 5: Dataset file migration — all datasets with files have media relations; article mainfile/extrafile verified
 - [ ] Check 6: Media accessibility — every media URL returns HTTP 200
-- [ ] Check 7: Relation integrity — all m2m relations match between source and target
+- [ ] Check 7: Relation integrity — all three m2m relation sets match (article→dataset, app→article, app→dataset)
 - [ ] Check 8: Timestamp preservation — all `createdAt`/`updatedAt` match originals (±1s)
-- [ ] Check 9: Content integrity — title/slug exact match, body length plausible for sampled articles
-- [ ] Check 10: No duplicates — zero duplicate `legacyId` values in any table
+- [ ] Check 9: Content integrity — title/slug exact match, `markdown` length plausible for sampled articles
+- [ ] Check 10: No duplicates — zero duplicate `legacyId` values in `article`, `dataset`, `app` tables
 - [ ] `data/validation-report.json` shows `overallStatus: "PASS"` and `checksFailed: 0`
 - [ ] `05-validate.js` exits with code 0
 
@@ -419,10 +443,15 @@ This is the final checklist before the migration is considered complete and the 
 
 - [ ] Browse ResearchHub frontend pointed at Strapi 5 — homepage loads correctly
 - [ ] Open 5 articles with known splash images — hero images render correctly
-- [ ] Open 5 articles with known inline images — all inline images render in the body
+- [ ] Open 5 articles with known thumbnails — thumbnail images render correctly
+- [ ] Open 5 articles with known inline images — all inline images render in the markdown content
 - [ ] Open 3 articles with known dataset relations — "Related Datasets" links work
 - [ ] Open 3 articles with known app/dashboard relations — dashboard links work
+- [ ] Open 3 articles with known mainfile attachments — mainfile downloads work
+- [ ] Open 3 articles with known extrafile attachments — extrafile downloads work
 - [ ] Download 3 dataset Excel files — files download and open correctly
+- [ ] Check 3 app pages — app images render correctly
+- [ ] Check 3 app→dataset relations — related datasets display correctly on app pages
 - [ ] Check 3 app/dashboard links — external Tableau/ShinyProxy URLs resolve
 - [ ] Verify article publication dates display correctly (not migration date)
 - [ ] Search or browse for an article known to be the oldest — confirm date is historic
@@ -458,12 +487,18 @@ You are building Phase 5 of a Strapi 3 → Strapi 5 migration tool for a project
 ## Context
 
 ResearchHub migrated 3 content types from Strapi 3 (MongoDB) to Strapi 5 (SQLite):
-- `article` (~250 records) — has `splash` (media field), `body` (markdown), m2m relations to datasets and apps
-- `dataset` (~42 records) — has `datafile` (media field for Excel files)
-- `app` (~15 records) — flat data (title, summary, url)
+- `article` (~250 records) — has `splash`, `thumbnail`, `mainfile`, `extrafile` (media fields), `markdown` (content field, NOT body), m2m relation to datasets (article is dominant)
+- `dataset` (~42 records) — has `datafile` (media field for Excel files), non-dominant sides of article and app relations
+- `app` (~15 records) — has `image` (media field), `description` (NOT summary), `url`, `contributors`, m2m relations to articles and datasets (app is dominant for both)
 
 All content types have a `legacyId` field storing the original Strapi 3 MongoDB ObjectId.
-Articles have m2m relations: `datasets` and `apps`.
+
+The relation graph is a **triangle** with three m2m relation sets:
+- Article → datasets (article is dominant)
+- App → articles (app is dominant)
+- App → datasets (app is dominant)
+
+The `collectionName` for each type is singular: `article`, `dataset`, `app`. Timestamps in source data use camelCase (`createdAt`/`updatedAt`), while SQLite columns use snake_case (`created_at`/`updated_at`).
 
 Strapi 3: http://localhost:1337
 Strapi 5: http://localhost:1338, API token in `config.js` as `strapi5Token`
@@ -487,21 +522,21 @@ Runs 10 validation checks in sequence and produces a report:
 
 **Check 2: Legacy ID coverage** — Fetch all legacyIds from Strapi 5 (paginated), compare against ids in `data/raw/*.json`. Report any missing or orphaned.
 
-**Check 3: Zero Base64 remnants** — Fetch all article bodies from Strapi 5 (paginated, `fields[0]=body`), search each for `data:image/`. Report any matches.
+**Check 3: Zero Base64 remnants** — Fetch all article `markdown` fields from Strapi 5 (paginated, `fields[0]=markdown`), search each for `data:image/`. Also scan `abstract` and app/dataset `description` fields. Report any matches.
 
-**Check 4: Splash image migration** — Identify articles with non-null `splash` in `data/raw/articles.json`. Fetch those articles from Strapi 5 with `?populate=splash`. Verify splash is a media object (not null).
+**Check 4: Image/media migration** — Identify articles with non-null `splash`, `thumbnail`, `mainfile`, or `extrafile` in `data/raw/articles.json`. Fetch those articles from Strapi 5 with `?populate=splash,thumbnail,mainfile,extrafile`. Verify each returns a media object. Also check apps with non-null `image` in `data/raw/apps.json` via `?populate=image`.
 
-**Check 5: Dataset file migration** — Same pattern for datasets and `datafile` field.
+**Check 5: Dataset file migration** — Same pattern for datasets and `datafile` field. Also verify article `mainfile` and `extrafile` fields.
 
 **Check 6: Media accessibility** — For every URL in `data/maps/media.json`, send `HEAD http://localhost:1338{url}`. Check for HTTP 200.
 
-**Check 7: Relation integrity** — For all articles, fetch from Strapi 5 with `?populate[datasets][fields][0]=legacyId&populate[apps][fields][0]=legacyId`. Compare related legacyIds against `_relatedDatasetIds` and `_relatedAppIds` in transformed data.
+**Check 7: Relation integrity** — Check all three relation sets in the triangle. For all articles, fetch from Strapi 5 with `?populate[datasets][fields][0]=legacyId` and compare against `_relatedDatasetIds`. For all apps, fetch with `?populate[articles][fields][0]=legacyId&populate[datasets][fields][0]=legacyId` and compare against `_relatedArticleIds` and `_relatedDatasetIds` in transformed app data.
 
 **Check 8: Timestamp preservation** — Open SQLite database (read-only). For each content type, compare `created_at` and `updated_at` values against `_originalCreatedAt`/`_originalUpdatedAt` from transformed data. Allow ±1 second tolerance.
 
-**Check 9: Content integrity** — Select random 10% of articles. Fetch from both Strapi 3 (GraphQL) and Strapi 5 (REST). Compare `title` and `slug` exactly. Verify `body` length in Strapi 5 ≤ Strapi 3 (Base64 replaced by shorter URLs).
+**Check 9: Content integrity** — Select random 10% of articles. Fetch from both Strapi 3 (GraphQL) and Strapi 5 (REST). Compare `title` and `slug` exactly. Verify `markdown` length in Strapi 5 ≤ Strapi 3 (Base64 replaced by shorter URLs).
 
-**Check 10: No duplicates** — Query SQLite: `SELECT legacyId, COUNT(*) FROM {table} GROUP BY legacyId HAVING COUNT(*) > 1` for all 3 types.
+**Check 10: No duplicates** — Query SQLite: `SELECT legacyId, COUNT(*) FROM {table} GROUP BY legacyId HAVING COUNT(*) > 1` for all 3 types (tables: `article`, `dataset`, `app` — singular names).
 
 **Output:**
 - Save full report to `data/validation-report.json` with status (PASS/FAIL/WARN) per check and overall

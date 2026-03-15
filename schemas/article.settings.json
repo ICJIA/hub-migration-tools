@@ -1,0 +1,89 @@
+{
+  "connection": "default",
+  "collectionName": "article",
+  "info": {
+    "name": "article",
+    "description": ""
+  },
+  "options": {
+    "timestamps": [
+      "createdAt",
+      "updatedAt"
+    ]
+  },
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "date": {
+      "type": "date"
+    },
+    "external": {
+      "type": "boolean"
+    },
+    "categories": {
+      "type": "json"
+    },
+    "tags": {
+      "type": "json"
+    },
+    "authors": {
+      "type": "json"
+    },
+    "splash": {
+      "type": "string"
+    },
+    "thumbnail": {
+      "type": "string"
+    },
+    "images": {
+      "type": "json"
+    },
+    "abstract": {
+      "type": "string"
+    },
+    "markdown": {
+      "type": "text"
+    },
+    "mainfiletype": {
+      "type": "string"
+    },
+    "funding": {
+      "type": "string"
+    },
+    "citation": {
+      "type": "string"
+    },
+    "doi": {
+      "type": "string"
+    },
+    "apps": {
+      "collection": "app",
+      "via": "articles"
+    },
+    "mainfile": {
+      "model": "file",
+      "via": "related",
+      "plugin": "upload"
+    },
+    "extrafile": {
+      "model": "file",
+      "via": "related",
+      "plugin": "upload"
+    },
+    "datasets": {
+      "collection": "dataset",
+      "via": "articles",
+      "dominant": true
+    },
+    "hideFromBanner": {
+      "type": "boolean"
+    }
+  }
+}

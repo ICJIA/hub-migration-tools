@@ -1,0 +1,77 @@
+{
+  "connection": "default",
+  "collectionName": "dataset",
+  "info": {
+    "name": "dataset",
+    "description": ""
+  },
+  "options": {
+    "timestamps": [
+      "createdAt",
+      "updatedAt"
+    ]
+  },
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "date": {
+      "type": "date"
+    },
+    "external": {
+      "type": "boolean"
+    },
+    "categories": {
+      "type": "json"
+    },
+    "tags": {
+      "type": "json"
+    },
+    "project": {
+      "type": "boolean"
+    },
+    "sources": {
+      "type": "json"
+    },
+    "unit": {
+      "type": "string"
+    },
+    "timeperiod": {
+      "type": "json"
+    },
+    "description": {
+      "type": "text"
+    },
+    "notes": {
+      "type": "json"
+    },
+    "variables": {
+      "type": "json"
+    },
+    "funding": {
+      "type": "string"
+    },
+    "citation": {
+      "type": "string"
+    },
+    "apps": {
+      "collection": "app",
+      "via": "datasets"
+    },
+    "datafile": {
+      "model": "file",
+      "via": "related",
+      "plugin": "upload"
+    },
+    "articles": {
+      "collection": "article",
+      "via": "datasets"
+    }
+  }
+}

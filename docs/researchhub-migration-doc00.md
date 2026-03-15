@@ -26,10 +26,13 @@ Migrate the ResearchHub content database from Strapi 3 (MongoDB) to Strapi 5 (SQ
 
 ### The Central Challenge: Base64 Image Extraction
 
-The `article` content type is the most complex migration target. Articles contain Base64-encoded images in two locations:
+The `article` content type is the most complex migration target. Articles contain Base64-encoded images in multiple locations:
 
-1. **Splash image field** — A dedicated field (e.g., `splashImage`) stores a single Base64 string representing the hero image. This is not a media library reference; it's raw Base64 text in a Text/LongText field.
-2. **Inline images in markdown body** — The article body is a markdown rich text field. Images are embedded using standard markdown syntax with Base64 data URIs: `![alt text](data:image/png;base64,iVBOR...)`.
+1. **`splash` field** — A `string` field storing a single Base64 string representing the hero image. This is not a media library reference; it's raw Base64 text in a string field.
+2. **`thumbnail` field** — Another `string` field that likely stores a Base64-encoded thumbnail image (needs investigation).
+3. **Inline images in `markdown` field** — The article body is a `text` field called `markdown`. Images are embedded using standard markdown syntax with Base64 data URIs: `![alt text](data:image/png;base64,iVBOR...)`.
+
+Additionally, the `app` content type has an `image` field (type `string`) that likely stores Base64 data.
 
 **Migration goal:** Extract every Base64 image, upload it to the Strapi 5 media library as an actual file, and replace the Base64 data with a URL pointing to the newly uploaded media asset. After migration, zero Base64 strings should remain in any content field.
 
@@ -61,40 +64,54 @@ With ~250 articles, each potentially containing a splash image plus multiple inl
 
 ## 3. Content Type Inventory
 
-| # | Strapi 3 Content Type | Strapi 5 Equivalent | Key Fields | Relations | Media Fields | Est. Records |
-|---|----------------------|---------------------|-----------|-----------|-------------|-------------|
-| 1 | `article` | `article` | title, slug, body (markdown), abstract, category, tags, dates | `datasets` (m2m → dataset), `apps` (m2m → app) | `splash` (Base64 in text field), inline Base64 in body | ~250 |
-| 2 | `dataset` | `dataset` | title, slug, description, category, tags, dates | Referenced by articles (m2m) | `datafile` (Excel file, actual media library reference) | TBD |
-| 3 | `app` | `app` | title, summary, URL (Tableau or ShinyProxy) | Referenced by articles (m2m) | None | TBD |
+| # | Strapi 3 Content Type | collectionName | Key Fields | Relations | Media / Base64 Fields | Est. Records |
+|---|----------------------|----------------|-----------|-----------|----------------------|-------------|
+| 1 | `article` | `article` (singular) | title, status, slug, date, external(bool), categories(json), tags(json), authors(json), abstract, markdown(text — the body field), mainfiletype, doi, hideFromBanner(bool), funding, citation | `datasets` m2m (article dominant, via articles), `apps` m2m (app dominant, via articles) | `splash`(string, Base64), `thumbnail`(string, likely Base64), `images`(json), `mainfile`(upload plugin), `extrafile`(upload plugin), inline Base64 in markdown | ~250 |
+| 2 | `dataset` | `dataset` (singular) | title, status, slug, date, external(bool), categories(json), tags(json), project(bool), sources(json), unit, timeperiod(json), description(text), notes(json), variables(json), funding, citation | `articles` m2m (article dominant, via datasets), `apps` m2m (app dominant, via apps) | `datafile`(upload plugin) | TBD |
+| 3 | `app` | `app` (singular) | title, status, slug, date, external(bool), categories(json), tags(json), contributors(json), description(text), url, funding, citation | `datasets` m2m (app dominant, via apps), `articles` m2m (app dominant, via apps) | `image`(string, likely Base64) | TBD |
+
+**Schema notes:**
+- All three types share common fields: title, status, slug, date, external, categories, tags, funding, citation.
+- Timestamps use camelCase: `createdAt`/`updatedAt` (not `created_at`/`updated_at`).
+- No fields have `required` or `unique` constraints in the Strapi 3 schemas.
+- Slug fields are plain `string` type, NOT `uid`.
+- The body field is called `markdown` (type `text`), NOT `body` (richtext). There are no richtext fields.
+- collectionName is singular in all three schemas: `"article"`, `"dataset"`, `"app"` (not plural).
 
 ### Relation Graph
 
 ```
-article ──m2m──▶ dataset
-article ──m2m──▶ app
+article ──m2m── dataset   (article dominant, via: articles)
+article ──m2m── app       (app dominant, via: apps/articles)
+app     ──m2m── dataset   (app dominant, via: apps)
 ```
 
-Both relations are many-to-many. Articles point outward; datasets and apps do not point back (one-directional m2m). No circular dependencies. No components or dynamic zones on any content type.
+The relation graph is a **triangle** — all three content types are interconnected. Dominance is determined by the `dominant: true` flag in the Strapi 3 schema: article is dominant on article-dataset, app is dominant on both app-dataset and app-article. No circular dependencies exist for loading because dominance is clear. No components or dynamic zones on any content type.
 
 ### Load Order (Phase 4)
 
-1. **Apps** — zero dependencies, zero media
-2. **Datasets** — zero content-type dependencies, but media files (`datafile`) must be uploaded first
-3. **Articles** — depends on apps + datasets (for relation linking) and media (splash + inline images)
+1. **Datasets** — no outbound dominant relations, media only (`datafile` via upload plugin)
+2. **Apps** — dominant on app-dataset and app-article; depends on datasets for relation linking; has `image` field (string, likely Base64)
+3. **Articles** — dominant on article-dataset; depends on both apps and datasets; has `splash`, `thumbnail` (Base64), `mainfile`, `extrafile` (upload plugin), plus inline Base64 in `markdown`
 
 ### Content Type Complexity
 
-**Articles (high complexity):** The bulk of the migration work. Two Base64 extraction targets (`splash` field + inline markdown images), markdown body field, two m2m relations. ~250 records × potentially multiple images each.
+**Articles (HIGH complexity):** The bulk of the migration work. The body field is `markdown` (type `text`, not richtext). Two Base64 string fields (`splash` and `thumbnail`), plus inline Base64 images in the `markdown` field. Two upload-plugin media fields (`mainfile`, `extrafile`). An `images` json field needing investigation. Two m2m relations (datasets, apps). ~250 records x potentially multiple images each.
 
-**Datasets (medium complexity):** The `datafile` field points to Excel files already stored in the Strapi 3 media library (not Base64). These are proper media references, so the migration needs to download the files from Strapi 3's upload directory and re-upload to Strapi 5. Simpler than the Base64 extraction pipeline but still requires media ID translation.
+**Datasets (MEDIUM complexity):** The `datafile` field uses the upload plugin (model: file, via: related) — these are proper media references, so the migration needs to download files from Strapi 3's upload directory and re-upload to Strapi 5. Has two non-dominant m2m relation sides (articles via article-dominant, apps via app-dominant). Multiple json fields (sources, timeperiod, notes, variables) that need schema mapping.
 
-**Apps (low complexity):** Essentially flat data — title, summary, and an external URL pointing to Tableau Public or a ShinyProxy instance. No media, no rich text, no Base64. Straightforward field-for-field copy with minimal transformation.
+**Apps (MEDIUM complexity):** Not the simple flat type originally assumed. Has an `image` field (type `string`, likely storing Base64 data like article `splash`). Has a `description` field (type `text`). Has two **dominant** m2m relations (app-dataset and app-article). Has `contributors` (json). Requires Base64 investigation and relation linking.
 
 ### Known Data Issues
 
-- **Base64 splash images:** The `article` content type has a `splash` field that stores a hero image as a raw Base64 string — not a media library reference. Each article's splash image must be decoded, saved as a file, uploaded to Strapi 5's media library, and the field replaced with a media relation.
-- **Base64 inline images in markdown:** Article body fields contain markdown with embedded Base64 images in standard syntax: `![alt](data:image/png;base64,...)`. Each must be extracted, uploaded, and the markdown rewritten to reference the new media URL: `![alt](https://strapi5-host/uploads/filename.png)`.
-- **Scale:** ~250 articles, each potentially containing 1 splash image + N inline images. Estimated total image count: 500–1,500+ (to be confirmed during Phase 2 extraction).
+- **Base64 splash images:** The `article` content type has a `splash` field (type `string`, not text) that stores a hero image as a raw Base64 string — not a media library reference. Each article's splash image must be decoded, saved as a file, uploaded to Strapi 5's media library, and the field replaced with a media relation.
+- **Base64 thumbnail images:** The `article` content type also has a `thumbnail` field (type `string`) that likely stores a Base64-encoded image. Needs investigation during Phase 2 extraction to confirm contents and treatment.
+- **Base64 app images:** The `app` content type has an `image` field (type `string`) that likely stores a Base64-encoded image. Needs investigation during Phase 2 extraction.
+- **Base64 inline images in markdown:** The article body field is called `markdown` (type `text`). It contains embedded Base64 images in standard markdown syntax: `![alt](data:image/png;base64,...)`. Each must be extracted, uploaded, and the markdown rewritten to reference the new media URL: `![alt](https://strapi5-host/uploads/filename.png)`.
+- **Article `images` field:** The article schema has an `images` field (type `json`) whose contents are unknown. Needs investigation — may contain Base64 data, URLs, or structured image metadata.
+- **Upload plugin media fields:** Article has `mainfile` and `extrafile` fields; dataset has `datafile`. All three use the Strapi 3 upload plugin (model: file, via: related). These are proper media references that must be downloaded from Strapi 3 and re-uploaded to Strapi 5.
+- **Timestamp field names:** Strapi 3 schemas use camelCase timestamps (`createdAt`/`updatedAt`), not snake_case. GraphQL extraction queries should use `createdAt`/`updatedAt`.
+- **Scale:** ~250 articles, each potentially containing 1 splash image + 1 thumbnail + N inline images. Estimated total image count: 500–1,500+ (to be confirmed during Phase 2 extraction).
 - **MongoDB ObjectIds:** All Strapi 3 IDs are MongoDB ObjectId strings (e.g., `507f1f77bcf86cd799439011`), not integers. The ID translation table maps these to Strapi 5 UUID `documentId` values.
 
 ---
@@ -123,10 +140,10 @@ Each phase has a **gate** — a set of automated and manual checks that must pas
 
 | Phase | Gate Script | What It Validates | Blocks |
 |-------|-------------|-------------------|--------|
-| 1 | `scripts/01c-verify-schemas.js` | All content types exist in Strapi 5, all fields present with correct types, relations properly defined, `legacyId` field present, splash is media type | Phase 2 |
+| 1 | `scripts/01c-verify-schemas.js` | All content types exist in Strapi 5, all fields present with correct types, relations properly defined (triangle graph), `legacyId` field present, splash/thumbnail/image are media type | Phase 2 |
 | 2 | Built into `scripts/02-extract.js` (post-extraction checks) | Record counts match Strapi 3 REST count endpoints, all records have IDs, timestamps present, JSON files parseable | Phase 3 |
-| 3 | `scripts/03-verify.js` (dedicated Phase 3 validation) | Zero Base64 remnants in transformed articles, all manifest images decoded and uploaded, all splash fields are media IDs, all dataset files uploaded, media accessible in Strapi 5 | Phase 4 |
-| 4 | `scripts/04-verify.js` (dedicated Phase 4 validation) | Record counts match in Strapi 5, all relations linked correctly, timestamps restored to original values, no duplicate records, splash/datafile media accessible | Phase 5 |
+| 3 | `scripts/03-verify.js` (dedicated Phase 3 validation) | Zero Base64 remnants in transformed articles/apps, all manifest images decoded and uploaded, all splash/thumbnail/image fields are media IDs, all upload-plugin files (mainfile, extrafile, datafile) uploaded, media accessible in Strapi 5 | Phase 4 |
+| 4 | `scripts/04-verify.js` (dedicated Phase 4 validation) | Record counts match in Strapi 5, all relations linked correctly (triangle graph), timestamps restored to original values, no duplicate records, all media accessible (splash, thumbnail, image, mainfile, extrafile, datafile) | Phase 5 |
 | 5 | `scripts/05-validate.js` | End-to-end reconciliation across Strapi 3 and Strapi 5 — the final comprehensive check | Deployment |
 
 **Rule:** If any gate check fails, stop. Diagnose and fix before proceeding. Re-running a later phase on bad upstream data wastes time and creates confusing error trails.
@@ -145,15 +162,16 @@ Phase 1 automates this with three substeps:
 |----------------|---------------------|-------|
 | `string` | `string` | Direct |
 | `text` | `text` | Direct |
-| `richtext` | `richtext` | Use richtext (markdown), NOT the blocks editor |
+| `richtext` | `richtext` | NOT used in this project. The body field is `markdown` (type `text`), not richtext |
 | `integer` / `biginteger` / `float` / `decimal` | Same types | Direct |
 | `boolean` | `boolean` | Direct |
 | `date` / `datetime` / `time` | Same types | Direct |
 | `enumeration` | `enumeration` | Values array syntax may differ |
 | `json` | `json` | Direct |
-| `uid` | `uid` | Add `targetField` if present |
+| `uid` | `uid` | Add `targetField` if present. Note: slug fields in this project are plain `string`, NOT `uid` |
 | `media` (single/multiple) | `media` | Specify `allowedTypes`, `multiple` |
-| Text field storing Base64 (e.g., `splashImage`) | `media` | **Type change** — see Section 5.3 |
+| `media` via upload plugin (`model: file, via: related, plugin: upload`) | `media` | Applies to: article.mainfile, article.extrafile, dataset.datafile |
+| String field storing Base64 (article.splash, article.thumbnail, app.image) | `media` | **Type change** — all are type `string` in Strapi 3. See Section 5.3 |
 | Relation via `model`/`collection` + `via` | `relation` with `type`, `target`, `mappedBy`/`inversedBy` | Strapi 5 relation syntax is completely different |
 
 **Step 1c — Generate `schema.json` Files.** For each content type, produce a Strapi 5-compatible `schema.json` and write it to the correct location in the Strapi 5 project directory:
@@ -185,7 +203,7 @@ After generating all schema files, also generate the corresponding route, contro
 
 Phase 3 is the most complex phase and the heart of the migration. It has four substeps executed in order:
 
-**Step 3a — Scan & Inventory.** Parse all raw article JSON files. For each article, detect Base64 content in (1) the `splash` field and (2) inline markdown images. Produce a manifest: `data/media/manifest.json` listing every image found, its source article, location (splash vs. inline), MIME type (detected from the Base64 header `data:image/png;base64,` or `data:image/jpeg;base64,`), and a generated filename.
+**Step 3a — Scan & Inventory.** Parse all raw JSON files. For each article, detect Base64 content in (1) the `splash` field, (2) the `thumbnail` field, and (3) inline markdown images in the `markdown` field. Also scan each app's `image` field for Base64 content. Produce a manifest: `data/media/manifest.json` listing every image found, its source record and content type, location (splash/thumbnail/image/inline), MIME type (detected from the Base64 header `data:image/png;base64,` or `data:image/jpeg;base64,`), and a generated filename.
 
 **Filename convention:** `{articleSlug}-splash.{ext}` for splash images, `{articleSlug}-{index}.{ext}` for inline images (e.g., `violent-crime-trends-2024-splash.png`, `violent-crime-trends-2024-001.jpg`).
 
@@ -206,14 +224,16 @@ Phase 3 is the most complex phase and the heart of the migration. It has four su
 
 **Step 3d — Rewrite Content.** For each article:
 
-- **Splash field:** Replace the Base64 string in `splash` with a media relation ID pointing to the uploaded Strapi 5 media asset. In the transformed article JSON, the `splash` field becomes a relation to the media library rather than a text field.
-- **Markdown body:** Find each `![alt](data:image/...;base64,...)` and replace with `![alt](/uploads/filename.ext)` using the URL from the media map. The markdown itself stays as markdown — only the image references change.
+- **Splash field:** Replace the Base64 string in `splash` with a media relation ID pointing to the uploaded Strapi 5 media asset. In the transformed article JSON, the `splash` field becomes a relation to the media library rather than a string field.
+- **Thumbnail field:** Same treatment as splash — if `thumbnail` contains Base64, replace with a media relation ID.
+- **App image field:** Same treatment — if app `image` contains Base64, replace with a media relation ID.
+- **Markdown body:** Find each `![alt](data:image/...;base64,...)` in the `markdown` field and replace with `![alt](/uploads/filename.ext)` using the URL from the media map. The markdown itself stays as markdown — only the image references change.
 
 Write the rewritten articles to `data/transformed/articles.json`.
 
-**Step 3e — Dataset Media Migration.** Datasets reference Excel files via the `datafile` field, stored in the Strapi 3 media library (actual media references, not Base64). For each dataset, download the referenced Excel file from Strapi 3's `/uploads/` directory, re-upload to Strapi 5's media library via `/api/upload`, and record the old-to-new media ID mapping in `data/maps/media.json`. The dataset's `datafile` reference in the transformed JSON is updated to point to the new Strapi 5 media ID.
+**Step 3e — Upload Plugin Media Migration.** Three fields use the Strapi 3 upload plugin (model: file, via: related): article `mainfile`, article `extrafile`, and dataset `datafile`. For each record referencing a media file, download the file from Strapi 3's `/uploads/` directory, re-upload to Strapi 5's media library via `/api/upload`, and record the old-to-new media ID mapping in `data/maps/media.json`. The transformed JSON is updated to point to the new Strapi 5 media IDs. Article `mainfile` and `extrafile` need the same download-and-reupload pipeline as dataset `datafile`.
 
-**Step 3f — Transform Remaining Content Types.** Apps require minimal transformation — just field mapping and ID handling. No media, no rich text. Transform and write to `data/transformed/apps.json`.
+**Step 3f — Transform Remaining Content Types.** Apps require field mapping, ID handling, and Base64 extraction for the `image` field. Datasets require field mapping and ID handling. Transform and write to `data/transformed/apps.json` and `data/transformed/datasets.json`.
 
 ---
 
@@ -250,16 +270,21 @@ Strapi 5 content types are defined by `schema.json` files in `./src/api/[api-nam
 
 **Rationale:** Strapi 5's GraphQL plugin does not support multipart file uploads. The `/api/upload` REST endpoint is the only reliable method. This is especially critical here since the bulk of the migration work is media uploads — potentially 500–1,500+ images extracted from Base64.
 
-### 5.4 Splash Image Field Type Change (Strapi 3 → Strapi 5)
+### 5.4 Base64 Image Field Type Changes (Strapi 3 → Strapi 5)
 
-**Strapi 3:** `splash` is a Text/LongText field containing a raw Base64 string.  
-**Strapi 5:** `splash` should be redefined as a **Media field** (single image) that references an asset in the media library.
+Three fields store Base64 image data as plain `string` type in Strapi 3:
 
-This is a structural schema change, not just a data migration. The Strapi 5 content type must be built with the splash image as a media relation from the start (Phase 1). The Base64 → file → upload → relation pipeline (Phase 3) populates it.
+| Field | Content Type | Strapi 3 Type | Strapi 5 Type |
+|-------|-------------|---------------|---------------|
+| `splash` | article | `string` | `media` (single image) |
+| `thumbnail` | article | `string` | `media` (single image) |
+| `image` | app | `string` | `media` (single image) |
 
-### 5.5 Markdown Body: Rewrite Strategy
+These are structural schema changes, not just data migrations. The Strapi 5 content types must be built with these as media relations from the start (Phase 1). The Base64 → file → upload → relation pipeline (Phase 3) populates them. Note: `thumbnail` and `image` need investigation during Phase 2 to confirm they actually contain Base64 data.
 
-The article body field remains a markdown/rich text field in Strapi 5. The Base64 inline images are replaced with standard markdown image references pointing to Strapi 5 media URLs. The regex pattern for detection:
+### 5.5 Markdown Field: Rewrite Strategy
+
+The article `markdown` field (type `text`) contains the article body as markdown. It remains a text field in Strapi 5. The Base64 inline images are replaced with standard markdown image references pointing to Strapi 5 media URLs. The regex pattern for detection:
 
 ```
 /!\[([^\]]*)\]\(data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)\)/g
@@ -317,7 +342,7 @@ This approach is preferred over alternatives because:
 
 **Implementation:**
 
-- During Phase 2 (Extract), capture `created_at` / `createdAt` and `updated_at` / `updatedAt` from every Strapi 3 record.
+- During Phase 2 (Extract), capture `createdAt` and `updatedAt` from every Strapi 3 record (schemas confirm camelCase).
 - During Phase 3 (Transform), include original timestamps in the transformed JSON alongside the content payload.
 - During Phase 4 (Load), after API creation, run `04c-fix-timestamps.js` which reads each ID map, looks up the original timestamps from the transformed data, and executes the SQL UPDATE against the Strapi 5 SQLite file.
 
@@ -325,10 +350,10 @@ This approach is preferred over alternatives because:
 
 | Strapi 3 (MongoDB) | Strapi 5 (SQLite) |
 |--------------------|--------------------|
-| `created_at` or `createdAt` | `created_at` (DB column) / `createdAt` (API response) |
-| `updated_at` or `updatedAt` | `updated_at` (DB column) / `updatedAt` (API response) |
+| `createdAt` (camelCase — confirmed in schemas) | `created_at` (DB column) / `createdAt` (API response) |
+| `updatedAt` (camelCase — confirmed in schemas) | `updated_at` (DB column) / `updatedAt` (API response) |
 
-The GraphQL extraction query should request both forms to be safe; the transform step normalizes to Strapi 5's column names.
+The Strapi 3 schemas explicitly configure timestamps as `["createdAt", "updatedAt"]` (camelCase). The GraphQL extraction query should use `createdAt`/`updatedAt`; the transform step normalizes to Strapi 5's column names.
 
 ### 5.10 Legacy ID Field (`legacyId`)
 
@@ -446,8 +471,9 @@ researchhub-migration/
 | Strapi 5 API rejects nested payloads | Medium — blocks content loading | Medium | Test with manual curl/Postman for each content type before scripting |
 | Rate limiting on either API | Low — slows migration | Low (local instances) | Add configurable delay between requests, retry with backoff |
 | Strapi 3 GraphQL pagination edge cases | Medium — missing records | Low | Post-extract count check vs. MongoDB record count |
-| Relation ordering (forward references) | Medium — load fails | Low | Only 3 content types with shallow relations; load dashboards first (no deps), then datasets, then articles. Two-pass only if articles↔datasets have circular refs |
-| Rich text field format differences | Medium — broken content | Medium | Audit rich text format in Phase 1; use markdown/plaintext field in Strapi 5 if Strapi 3 content is markdown |
+| Relation ordering (triangle graph) | Medium — load fails | Low | Three content types with triangle m2m relations. Load order: datasets (no dominant outbound), apps (dominant on app-dataset, app-article), articles (dominant on article-dataset). Dominance flags confirmed from schemas |
+| `thumbnail` and `image` fields may not contain Base64 | Medium — wrong field type in Strapi 5 schema | Medium | Investigate actual field contents during Phase 2 extraction. If not Base64, keep as string type instead of converting to media |
+| Rich text field format differences | Low — no richtext fields | Low | Confirmed: no richtext fields exist. Body field is `markdown` (type `text`). Use text/LongText in Strapi 5 |
 | Timestamps lost on API creation | High — audit trail destroyed | High (certain without mitigation) | Post-load SQLite UPDATE to restore original `createdAt`/`updatedAt` from Strapi 3 |
 | SQLite timestamp format mismatch | Medium — dates display wrong | Low | Verify Strapi 5 expects ISO 8601 in SQLite; normalize during transform |
 
@@ -489,10 +515,10 @@ After `01b-generate-schemas.js` writes the `schema.json` files and Strapi 5 is r
 
 - All content types from Strapi 3 exist in Strapi 5
 - All fields are present with correct types
-- Relations are properly defined
-- The splash image field is now a media type (not text)
+- Relations are properly defined (triangle: article-dataset, article-app, app-dataset)
+- The Base64 image fields (article.splash, article.thumbnail, app.image) are now media types (not string)
 
-Output: `data/introspection/schema-diff.json` — should show only expected differences (new Strapi 5 system fields like `documentId`, the splash field type change, relation syntax differences).
+Output: `data/introspection/schema-diff.json` — should show only expected differences (new Strapi 5 system fields like `documentId`, the Base64-to-media field type changes, relation syntax differences).
 
 ---
 
@@ -501,32 +527,34 @@ Output: `data/introspection/schema-diff.json` — should show only expected diff
 | Criterion | Measurement |
 |-----------|-------------|
 | All content types generated | Every Strapi 3 content type has a corresponding `schema.json` in the Strapi 5 project; Strapi 5 starts without errors |
-| Schema diff clean | `schema-diff.json` shows only expected differences (system fields, splash type change); no missing fields or types |
+| Schema diff clean | `schema-diff.json` shows only expected differences (system fields, Base64-to-media type changes for splash/thumbnail/image); no missing fields or types |
 | All content types migrated | Record count matches between Strapi 3 and Strapi 5 for every content type |
 | All 250 articles migrated | Article count in Strapi 5 = article count in Strapi 3 |
 | All Base64 images extracted | Manifest image count = decoded file count = uploaded media count |
-| Zero Base64 remnants | Scan all Strapi 5 text/markdown fields for `data:image/` — zero matches |
-| All splash images converted | Every article with a Base64 splash in Strapi 3 has a media relation in Strapi 5 |
-| All inline images rewritten | Every `![alt](data:image/...)` in Strapi 3 markdown is now `![alt](/uploads/...)` in Strapi 5 |
+| Zero Base64 remnants | Scan all Strapi 5 text/string fields (including `markdown`, `splash`, `thumbnail`, `image`) for `data:image/` — zero matches |
+| All Base64 image fields converted | Every article with a Base64 `splash` or `thumbnail` in Strapi 3 has a media relation in Strapi 5; every app with a Base64 `image` has a media relation |
+| All inline images rewritten | Every `![alt](data:image/...)` in Strapi 3 `markdown` field is now `![alt](/uploads/...)` in Strapi 5 |
+| All upload-plugin media migrated | Article `mainfile`/`extrafile` and dataset `datafile` — all files downloaded from Strapi 3 and re-uploaded to Strapi 5 |
 | All media files accessible | HTTP GET on every Strapi 5 media URL returns 200 with correct content-type |
 | All relations intact | Spot check 10% of entries with relations; all resolve correctly |
-| Timestamps preserved | For every record, Strapi 5 `createdAt` matches Strapi 3 `created_at`; same for `updatedAt`. Spot check + automated diff of 100% of article timestamps |
+| Timestamps preserved | For every record, Strapi 5 `createdAt` matches Strapi 3 `createdAt`; same for `updatedAt`. Spot check + automated diff of 100% of article timestamps |
 | Strapi 5 API serves content correctly | Manual QA of ResearchHub frontend against Strapi 5 backend |
 
 ---
 
 ## 10. Open Questions
 
-1. ~~**Rich text format:**~~ **Resolved.** Article bodies are markdown. Strapi 5 should use a markdown or plaintext/LongText field (not the blocks editor) to preserve content as-is.
+1. ~~**Rich text format:**~~ **Resolved.** Article body is the `markdown` field (type `text`, not richtext). Strapi 5 should use a text/LongText field (not the blocks editor) to preserve content as-is. There are no richtext fields in any content type.
 2. ~~**Content type creation method:**~~ **Resolved.** Content types will be generated programmatically as `schema.json` files (see Section 5.1). No manual admin UI work required.
-3. ~~**Content types:**~~ **Resolved.** Three content types: `article`, `dataset`, `app`. Apps have no relations or media. Datasets reference Excel files via `datafile`. Articles have Base64 `splash` + inline images.
+3. ~~**Content types:**~~ **Resolved.** Three content types: `article`, `dataset`, `app`. All three have m2m relations forming a triangle. Apps have `image` (likely Base64) and two dominant m2m relations. Datasets reference files via `datafile` (upload plugin). Articles have Base64 `splash` + `thumbnail` + inline images in `markdown`, plus `mainfile`/`extrafile` (upload plugin).
 4. ~~**Components:**~~ **Resolved.** No components on any content type.
-5. ~~**Relations:**~~ **Resolved.** Articles have two m2m relation fields: `datasets` (→ dataset) and `apps` (→ app). Both are many-to-many. No reverse relations. No circular dependencies.
-6. ~~**Splash image field name:**~~ **Resolved.** `splash`.
+5. ~~**Relations:**~~ **Resolved.** Three m2m relations forming a triangle: article-dataset (article dominant), article-app (app dominant), app-dataset (app dominant). All use `via` for bidirectional linking. No circular dependency issues because dominance is clear.
+6. ~~**Splash image field name:**~~ **Resolved.** `splash` (type `string`, confirmed from schema).
 7. ~~**Dataset file field name:**~~ **Resolved.** `datafile`.
 8. ~~**Strapi 5 hosting:**~~ **Resolved.** DigitalOcean via Laravel Forge.
 9. **Base64 image formats:** Are all embedded images PNG, or is there a mix of PNG/JPEG/GIF/WebP? (The scan step will detect this, but knowing upfront helps.)
-10. **Exact field inventory:** The introspection step (Phase 1a) will capture the complete field list for all three content types. The fields listed in Section 3 are approximate — the authoritative list comes from the Strapi 3 model JSON files.
+10. ~~**Exact field inventory:**~~ **Resolved.** Field inventory is now CONFIRMED from actual Strapi 3 model schemas stored in `schemas/` directory (article.settings.json, dataset.settings.json, app.settings.json). Section 3 has been updated with the authoritative field list.
+11. ~~**Relation graph:**~~ **Resolved.** The relation graph is a triangle (article-dataset-app), not a star radiating from articles. Dominance confirmed from `dominant: true` flags in schemas. See Section 3 Relation Graph.
 
 ---
 
