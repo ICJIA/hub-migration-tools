@@ -286,13 +286,38 @@ async function main() {
       console.log(`${YELLOW}  - Transformed data is missing _originalCreatedAt/_originalUpdatedAt${RESET}`);
       console.log(`${YELLOW}  - document_id values don't match between maps and DB${RESET}`);
     }
+    // ── Set mainField to "title" for admin display ────────────────────
+    console.log('\nSetting content manager "Entry title" to "title" for all content types...');
+    const contentTypeKeys = [
+      'plugin_content_manager_configuration_content_types::api::article.article',
+      'plugin_content_manager_configuration_content_types::api::dataset.dataset',
+      'plugin_content_manager_configuration_content_types::api::app.app',
+    ];
+
+    for (const key of contentTypeKeys) {
+      try {
+        const row = db.prepare('SELECT value FROM strapi_core_store_settings WHERE key = ?').get(key);
+        if (row?.value) {
+          const config = JSON.parse(row.value);
+          const oldMainField = config.settings?.mainField;
+          config.settings.mainField = 'title';
+          config.settings.defaultSortBy = 'title';
+          db.prepare('UPDATE strapi_core_store_settings SET value = ? WHERE key = ?')
+            .run(JSON.stringify(config), key);
+          const typeName = key.split('::').pop();
+          console.log(`  ${GREEN}✓${RESET} ${typeName}: mainField ${oldMainField} → title`);
+        }
+      } catch (err) {
+        console.log(`  ${YELLOW}⚠ Could not update ${key}: ${err.message}${RESET}`);
+      }
+    }
   } finally {
     // Always close the database
     db.close();
     console.log('\nSQLite database closed.');
   }
 
-  console.log(`\n${GREEN}Phase 4e (timestamp restoration) complete.${RESET}`);
+  console.log(`\n${GREEN}Phase 4e (timestamp restoration + admin config) complete.${RESET}`);
   console.log(`${YELLOW}Remember to restart Strapi 5 before running verification.${RESET}`);
   console.log('Next: verify with `node migration/scripts/04-verify.js`');
 }
