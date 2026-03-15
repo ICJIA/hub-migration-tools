@@ -15,9 +15,9 @@ dist/
 exports/
 
 # Data directories (may contain large extracts)
-data/raw/
-data/transformed/
-data/media/
+migration/data/raw/
+migration/data/transformed/
+migration/data/media/
 
 # SQLite
 *.db

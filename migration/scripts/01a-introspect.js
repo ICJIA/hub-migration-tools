@@ -12,7 +12,7 @@
  * - `data/introspection/strapi3-models.json` — Parsed model file data (authoritative)
  *
  * @example
- *   node scripts/01a-introspect.js
+ *   node migration/scripts/01a-introspect.js
  *
  * Prerequisites:
  * - Strapi 3 model files in `schemas/` directory (article.settings.json, etc.)
@@ -24,7 +24,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '../..');
 
 /** ANSI color codes for terminal output */
 const RED = '\x1b[31m';
@@ -212,7 +212,7 @@ async function main() {
     const media = attrs.filter(([, d]) => d.plugin === 'upload').length;
     console.log(`  ${ctName}: ${scalars} scalar, ${relations} relation, ${media} media`);
   }
-  console.log('\nPhase 1a complete. Run `node scripts/01b-generate-schemas.js` next.');
+  console.log('\nPhase 1a complete. Run `node migration/scripts/01b-generate-schemas.js` next.');
 }
 
 main().catch(err => {

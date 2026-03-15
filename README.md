@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 0.6.0 ([Changelog](CHANGELOG.md))
+**Version:** 0.7.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -99,31 +99,41 @@ Every script prints its configuration at startup so you can verify target URLs b
 
 > **Security:** `config.js` is gitignored because it may contain API tokens. Never commit it.
 
+### Resetting
+
+To wipe all generated data and start fresh:
+
+```bash
+node migration/scripts/00-clean.js    # or: pnpm clean
+```
+
+This removes `migration/data/`, `migration/output/`, and the generated field map. Scripts, libraries, static config, and source schemas are preserved.
+
 ### Phase 1: Schema Setup
 
-Generates Strapi 5 content type schemas from the Strapi 3 model definitions. See [`scripts/README.md`](scripts/README.md) for detailed script documentation.
+Generates Strapi 5 content type schemas from the Strapi 3 model definitions. See [`migration/scripts/README.md`](migration/scripts/README.md) for detailed script documentation.
 
 ```bash
 # Step 1: Read Strapi 3 schemas (works without Strapi 3 running — uses local files)
-node scripts/01a-introspect.js
+node migration/scripts/01a-introspect.js
 
 # Step 2: Generate Strapi 5 schema.json files + boilerplate
-node scripts/01b-generate-schemas.js
+node migration/scripts/01b-generate-schemas.js
 
 # Step 3: Copy generated schemas to your Strapi 5 project
-cp -r output/strapi5-schemas/* /path/to/strapi5-project/src/api/
+cp -r migration/output/strapi5-schemas/* /path/to/strapi5-project/src/api/
 
 # Step 4: Start Strapi 5 in dev mode (it reads schemas and creates tables)
 cd /path/to/strapi5-project && pnpm develop
 
 # Step 5: Verify schemas were applied correctly (Strapi 5 must be running)
-node scripts/01c-verify-schemas.js
+node migration/scripts/01c-verify-schemas.js
 ```
 
 **What gets generated:**
 - 3 `schema.json` files with all fields, relations (triangle), and `legacyId`
 - Route, controller, and service boilerplate for each content type
-- Field mapping reference at `config/field-map.json`
+- Field mapping reference at `migration/config/field-map.json`
 
 ### Phase 2–5: Not Yet Implemented
 

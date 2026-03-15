@@ -9,6 +9,22 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [0.7.0] - 2026-03-15
+
+### Added
+- `migration/scripts/00-clean.js` — reset script to wipe all generated data for fresh runs
+- `pnpm clean` shortcut in package.json
+
+### Changed
+- Reorganized project: all tooling moved under `migration/` directory
+  - `scripts/` → `migration/scripts/`
+  - `lib/` → `migration/lib/`
+  - `config/` → `migration/config/`
+  - `data/` → `migration/data/`
+  - `output/` → `migration/output/`
+- Updated all import paths, config paths, JSDoc examples, and README instructions
+- Scripts README updated with directory structure diagram and pnpm shortcuts
+
 ## [0.6.0] - 2026-03-15
 
 ### Added

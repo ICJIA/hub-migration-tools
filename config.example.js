@@ -62,21 +62,21 @@ export default {
     /** @type {string} Local copies of Strapi 3 model schemas */
     schemas: './schemas',
     /** @type {string} GraphQL introspection output and schema diffs */
-    introspection: './data/introspection',
+    introspection: './migration/data/introspection',
     /** @type {string} Generated Strapi 5 schema files and boilerplate */
-    output: './output/strapi5-schemas',
+    output: './migration/output/strapi5-schemas',
     /** @type {string} Field type mapping rules (static config) */
-    fieldTypeMap: './config/field-type-map.json',
+    fieldTypeMap: './migration/config/field-type-map.json',
     /** @type {string} Generated field mapping details (output of Phase 1b) */
-    fieldMap: './config/field-map.json',
+    fieldMap: './migration/config/field-map.json',
     /** @type {string} Raw extracted data from Strapi 3 (Phase 2 output) */
-    rawData: './data/raw',
+    rawData: './migration/data/raw',
     /** @type {string} Transformed data ready for Strapi 5 loading (Phase 3 output) */
-    transformedData: './data/transformed',
+    transformedData: './migration/data/transformed',
     /** @type {string} Decoded media files and manifest (Phase 3 working directory) */
-    media: './data/media',
+    media: './migration/data/media',
     /** @type {string} ID and media translation maps (used across phases) */
-    maps: './data/maps',
+    maps: './migration/data/maps',
   },
 
   /**

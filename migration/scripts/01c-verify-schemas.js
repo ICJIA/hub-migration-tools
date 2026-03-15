@@ -18,7 +18,7 @@
  * new system fields (documentId, locale, etc.), and the added legacyId field.
  *
  * @example
- *   node scripts/01c-verify-schemas.js
+ *   node migration/scripts/01c-verify-schemas.js
  *
  * Prerequisites:
  * - Strapi 5 running with generated schemas applied
@@ -31,7 +31,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '../..');
 
 /** ANSI color codes for terminal output */
 const RED = '\x1b[31m';

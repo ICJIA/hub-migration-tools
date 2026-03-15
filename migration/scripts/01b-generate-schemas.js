@@ -17,7 +17,7 @@
  *   cp -r output/strapi5-schemas/* /path/to/strapi5-project/src/api/
  *
  * @example
- *   node scripts/01b-generate-schemas.js
+ *   node migration/scripts/01b-generate-schemas.js
  *
  * Prerequisites:
  * - Phase 1a complete (`data/introspection/strapi3-models.json` exists)
@@ -30,7 +30,7 @@ import { fileURLToPath } from 'url';
 import { generateStrapi5Schemas } from '../lib/schema-generator.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '../..');
 
 /** ANSI color codes for terminal output */
 const RED = '\x1b[31m';
@@ -133,13 +133,13 @@ async function main() {
   console.log(`Field map: ${config.paths.fieldMap}`);
 
   console.log('\n--- Next steps ---');
-  console.log('1. Review the generated schemas in output/strapi5-schemas/');
+  console.log(`1. Review the generated schemas in ${path.relative(ROOT, outputBase)}/`);
   console.log('2. Copy to your Strapi 5 project:');
-  console.log('   cp -r output/strapi5-schemas/* /path/to/strapi5-project/src/api/');
+  console.log(`   cp -r ${path.relative(ROOT, outputBase)}/* /path/to/strapi5-project/src/api/`);
   console.log('3. Start Strapi 5 in dev mode:');
-  console.log('   cd /path/to/strapi5-project && npm run develop');
+  console.log('   cd /path/to/strapi5-project && pnpm develop');
   console.log('4. Run verification:');
-  console.log('   node scripts/01c-verify-schemas.js');
+  console.log('   node migration/scripts/01c-verify-schemas.js');
 }
 
 main().catch(err => {
