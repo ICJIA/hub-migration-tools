@@ -723,6 +723,56 @@ node migration/scripts/01c-verify-schemas.js
 - Route, controller, and service boilerplate for each content type
 - Field mapping reference at `migration/config/field-map.json`
 
+<details>
+<summary>Example CLI output (Phase 1)</summary>
+
+```
+=== Phase 1a: Introspect Strapi 3 ===
+
+Configuration:
+  Strapi 3 GraphQL: https://researchhub.icjia-api.cloud/graphql
+  Strapi 3 API:     https://researchhub.icjia-api.cloud
+  Strapi 3 token:   (not set)
+  Schemas dir:      ./schemas
+  Content types:    article, dataset, app
+
+Reading Strapi 3 model files...
+  article: 22 attributes (from schemas/article.settings.json)
+  dataset: 19 attributes (from schemas/dataset.settings.json)
+  app: 15 attributes (from schemas/app.settings.json)
+  Found 3 content types: App, Dataset, Article
+
+--- Summary ---
+  article: 18 scalar, 2 relation, 2 media
+  dataset: 16 scalar, 2 relation, 1 media
+  app: 13 scalar, 2 relation, 0 media
+
+=== Phase 1b: Generate Strapi 5 Schemas ===
+
+  article: 23 fields (2 overrides) → migration/output/strapi5-schemas/article/...
+  dataset: 20 fields (0 overrides) → migration/output/strapi5-schemas/dataset/...
+  app: 16 fields (1 overrides) → migration/output/strapi5-schemas/app/...
+
+Content types generated: 3 | Total fields: 59 | Overrides applied: 3
+
+=== Phase 1c: Verify Strapi 5 Schemas ===
+
+Expected differences (36):
+  ✓ Article.documentId: Expected new Strapi 5 field
+  ✓ Article.splash: Expected type change (Base64 string → media)
+  ✓ Article.thumbnail: Expected type change (Base64 string → media)
+  ✓ App.image: Expected type change (Base64 string → media)
+  ... (36 total, all expected)
+
+REST API: PASS ✓
+legacyId field: PASS ✓
+Schema diff: PASS ✓ (36 expected, 0 unexpected)
+
+Overall: PASS ✓ — Ready for Phase 2
+```
+
+</details>
+
 ### Phase 2: Data Extraction
 
 Pulls all content from Strapi 3 via paginated GraphQL queries and stores it as local JSON files. After this phase, Strapi 3 is no longer needed — all data exists locally.
@@ -743,6 +793,53 @@ node migration/scripts/02-verify.js     # verify counts and data integrity
 **What it produces:** `migration/data/raw/articles.json`, `datasets.json`, `apps.json`, and an extraction manifest. See [Doc 02](docs/researchhub-migration-doc02.md) for details.
 
 > **Note:** All generated data in `migration/data/` and `migration/output/` is gitignored. It stays on the developer's local machine only.
+
+<details>
+<summary>Example CLI output (Phase 2)</summary>
+
+```
+=== Phase 2: Data Extraction ===
+
+Checking Strapi 3 connectivity...
+  ✓ Strapi 3 GraphQL is reachable
+
+Extracting articles...
+  articles: page 1 — 100 records so far
+  articles: page 2 — 200 records so far
+  articles: page 3 — 246 records so far
+  ✓ 246 articles saved to migration/data/raw/articles.json
+
+Extracting datasets...
+  datasets: page 1 — 35 records so far
+  ✓ 35 datasets saved to migration/data/raw/datasets.json
+
+Extracting apps...
+  apps: page 1 — 14 records so far
+  ✓ 14 apps saved to migration/data/raw/apps.json
+
+Verifying counts against Strapi 3 REST endpoints...
+  ✓ articles: 246 extracted = 246 in Strapi 3
+  ✓ datasets: 35 extracted = 35 in Strapi 3
+  ✓ apps: 14 extracted = 14 in Strapi 3
+
+--- Summary ---
+  articles: 246 records | datasets: 35 records | apps: 14 records
+  Total: 295 records
+
+=== Phase 2: Verification ===
+
+  ✓ articles IDs are ObjectIds: 246/246 valid
+  ✓ articles no duplicate IDs: all unique
+  ✓ articles timestamps present: 246/246 have createdAt + updatedAt
+  ✓ article mainfile refs: 203/203 valid (43 null)
+  ✓ article extrafile refs: 4/4 valid (242 null)
+  ✓ dataset datafile refs: 34/34 valid (1 null)
+  ✓ app image field captured: 14/14 have non-null image
+
+All 26 checks passed ✓
+```
+
+</details>
 
 ### Phase 3: Base64 Extraction & Media Migration
 
@@ -767,6 +864,48 @@ node migration/scripts/03-verify.js              # verify zero Base64 remnants, 
 
 **What it produces:** decoded images in `migration/data/media/`, media ID map in `migration/data/maps/media.json`, and transformed content in `migration/data/transformed/`. See [Doc 03](docs/researchhub-migration-doc03.md) for details.
 
+<details>
+<summary>Example CLI output (Phase 3)</summary>
+
+```
+Scanning 246 articles for Base64 images...
+  Article 1/246: violent-crime-trends-2024 — 1 splash + 1 thumbnail + 3 inline
+  ...
+Scanning apps for Base64 images...
+  App 1/14: sentencing-dashboard — 1 image
+Scan complete: 1091 images found (239 splash, 239 thumbnail, 599 inline, 14 app images)
+
+Decoding 1091 images...
+  [1/1091] violent-crime-trends-2024-splash.png — 135 KB ✓
+  ...
+Decode complete: 1091 succeeded, 0 failed
+
+Uploading 1091 files to Strapi 5 media library...
+  [1/1091] violent-crime-trends-2024-splash.png — uploaded (ID: 1)
+  ...
+Upload complete: 1091 files processed
+
+Rewriting 246 articles...
+Post-rewrite scan: 0 Base64 remnants found ✓
+
+Phase 3e complete.
+  Datasets:  35 records → migration/data/transformed/datasets.json
+  Articles:  246 records updated → migration/data/transformed/articles.json
+  Apps:      14 records → migration/data/transformed/apps.json
+  Media map: 1331 entries → migration/data/maps/media.json
+
+=== Phase 3 Verification ===
+  ✓ Splash parity: 239 Base64 in raw, 239 integer IDs in transformed
+  ✓ Thumbnail parity: 239 Base64 in raw, 239 integer IDs in transformed
+  ✓ Mainfile parity: 203 with media in raw, 203 integer IDs in transformed
+  ✓ App image parity: 14 Base64 in raw, 14 integer IDs in transformed
+  ✓ Zero data:image/ substrings in transformed markdown fields
+
+All 36 checks passed ✓
+```
+
+</details>
+
 ### Phase 4: Data Loading & Timestamp Restoration
 
 Loads all transformed content into Strapi 5 via REST API in dependency order (datasets → apps → articles), links the m2m relation triangle, and restores original `createdAt`/`updatedAt` timestamps via direct SQLite updates.
@@ -788,6 +927,45 @@ node migration/scripts/04-verify.js              # verify counts, relations, tim
 
 **What it produces:** fully populated Strapi 5 with all content, relations, and correct timestamps. ID maps in `migration/data/maps/`. See [Doc 04](docs/researchhub-migration-doc04.md) for details.
 
+<details>
+<summary>Example CLI output (Phase 4)</summary>
+
+```
+Loading datasets: 1/35... 2/35... ... 35/35 — done.
+Loading apps: 1/14... 2/14... ... 14/14 — done.
+Loading articles: 1/246... 2/246... ... 246/246 — done.
+
+Linking article → dataset relations for 246 articles...
+Linking app → article and app → dataset relations for 14 apps...
+All relations linked: 246 articles + 14 apps processed
+
+Restoring timestamps in Strapi 5 SQLite database...
+  Updating articles: 246 records
+  Updating datasets: 35 records
+  Updating apps: 14 records
+Timestamp restoration complete: 295 records updated
+
+Setting content manager "Entry title" to "title" for all content types...
+  ✓ article.article: mainField legacyId → title
+  ✓ dataset.dataset: mainField legacyId → title
+  ✓ app.app: mainField legacyId → title
+
+=== Phase 4 Verification ===
+  [PASS] articles count — expected 246, got 246
+  [PASS] datasets count — expected 35, got 35
+  [PASS] apps count — expected 14, got 14
+  [PASS] No duplicate legacyIds
+  [PASS] article → dataset relations correct
+  [PASS] app → article relations correct
+  [PASS] app → dataset relations correct
+  [PASS] All timestamps are historic (pre-migration)
+  [PASS] All media relations set
+
+All 21 checks passed ✓
+```
+
+</details>
+
 ### Phase 5: Validation & Reconciliation
 
 Runs 10 automated checks comparing Strapi 3 and Strapi 5 end-to-end: record counts, legacy ID coverage, zero Base64 remnants, media accessibility, relation integrity (all three m2m sets), timestamp preservation, content integrity spot checks, and duplicate detection.
@@ -805,6 +983,31 @@ node migration/scripts/05-validate.js           # run all 10 validation checks
 ```
 
 **What it produces:** `migration/data/validation-report.json` with pass/fail per check and a console summary. See [Doc 05](docs/researchhub-migration-doc05.md) for details.
+
+<details>
+<summary>Example CLI output (Phase 5)</summary>
+
+```
+╔═══════════════════════════════════╗
+║  ResearchHub Migration Validation ║
+╚═══════════════════════════════════╝
+
+  ✓ Record counts ................. PASS (246 articles, 35 datasets, 14 apps)
+  ✓ Legacy ID coverage ............ PASS (295/295 mapped)
+  ✓ Zero Base64 remnants .......... PASS (0 found in 246 articles + 14 apps + 35 datasets)
+  ✓ Image/media migration ......... PASS (splash 239/239, thumbnail 239/239,
+                                          mainfile 203/203, extrafile 4/4, app image 14/14)
+  ✓ Dataset file migration ........ PASS (34/34 migrated)
+  ✓ Media accessibility ........... PASS (1331/1331 accessible)
+  ✓ Relation integrity ............ PASS (article→dataset, app→article, app→dataset — all correct)
+  ✓ Timestamp preservation ........ PASS (295/295 match)
+  ✓ Content integrity ............. PASS (25/25 spot checks passed)
+  ✓ No duplicates ................. PASS (0 duplicates)
+
+  Result: 10/10 checks passed — MIGRATION VALIDATED ✓
+```
+
+</details>
 
 ### Phase 6: Parity Audit
 
@@ -827,6 +1030,47 @@ node migration/scripts/06-audit.js    # or: pnpm audit
 - `migration/data/audit-report.md` — human-readable report for stakeholders
 
 See [Doc 06](docs/researchhub-migration-doc06.md) for details.
+
+<details>
+<summary>Example CLI output (Phase 6)</summary>
+
+```
+=== Phase 6: Parity Audit ===
+
+── Step 1: Fetching records from both systems ──
+  Fetching articles from Strapi 3 (GraphQL)... 246 records
+  Fetching articles from Strapi 5 (REST)...    246 records
+  Fetching datasets from Strapi 3 (GraphQL)... 35 records
+  Fetching datasets from Strapi 5 (REST)...    35 records
+  Fetching apps from Strapi 3 (GraphQL)...     14 records
+  Fetching apps from Strapi 5 (REST)...        14 records
+
+── Step 3: Record-level comparison ──
+  Auditing articles: 246/246... done
+  Auditing datasets: 35/35... done
+  Auditing apps: 14/14... done
+
+── Step 4: Media audit ──
+  Total media in S5:    1331
+  Accessible:           1331
+  Inaccessible:         0
+
+╔═════════════════════════════════════╗
+║  Phase 6: Parity Audit — Summary    ║
+╚═════════════════════════════════════╝
+
+  Records compared:    295
+  Fields compared:     6,877
+
+  ERROR:     0
+  EXPECTED:  1,315
+  INFO:      6
+  OK:        5,571
+
+  RESULT: 0 ERROR(s) — migration verified ✓
+```
+
+</details>
 
 ### Setting Up Strapi 5
 
