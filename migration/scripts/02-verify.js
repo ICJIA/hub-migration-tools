@@ -37,12 +37,8 @@ const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
 const RESET = '\x1b[0m';
 
-let config;
-try {
-  config = (await import(path.join(ROOT, 'config.js'))).default;
-} catch {
-  config = (await import(path.join(ROOT, 'config.example.js'))).default;
-}
+import { loadConfig } from '../lib/load-config.js';
+const config = await loadConfig();
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/;
 

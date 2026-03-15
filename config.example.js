@@ -2,13 +2,27 @@
  * @module config
  * @description Single source of truth for all migration configuration.
  *
- * Copy this file to `config.js` and adjust values as needed:
+ * There are two ways to configure:
+ *
+ * **Option A: Copy a profile** (recommended)
+ *   cp config.dev.js config.js    # Local dev: remote Strapi 3, local Strapi 5
+ *   cp config.prod.js config.js   # Production: remote Strapi 3, remote Strapi 5
+ *
+ * **Option B: Use MIGRATION_ENV**
+ *   MIGRATION_ENV=dev node migration/scripts/01-run-phase.js
+ *   MIGRATION_ENV=prod node migration/scripts/02-run-phase.js
+ *
+ * **Option C: Copy this file and customize**
  *   cp config.example.js config.js
  *
  * `config.js` is gitignored (it may contain API tokens).
  * All values have sensible defaults and can be overridden via environment variables.
  *
  * If `config.js` does not exist, scripts fall back to `config.example.js` defaults.
+ *
+ * Profiles:
+ *   config.dev.js  — Strapi 3 remote (researchhub.icjia-api.cloud) + Strapi 5 local (localhost:1338)
+ *   config.prod.js — Strapi 3 remote + Strapi 5 remote (researchhub2.icjia-api.cloud)
  */
 
 export default {

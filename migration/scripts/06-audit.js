@@ -55,14 +55,8 @@ const RESET = '\x1b[0m';
 
 // ── Config ───────────────────────────────────────────────────────────
 
-/** @type {import('../../config.example.js').default} */
-let config;
-try {
-  config = (await import(path.join(ROOT, 'config.js'))).default;
-} catch {
-  console.warn(`${YELLOW}config.js not found — using config.example.js defaults${RESET}`);
-  config = (await import(path.join(ROOT, 'config.example.js'))).default;
-}
+import { loadConfig } from '../lib/load-config.js';
+const config = await loadConfig();
 
 const DELAY_MS = config.settings?.requestDelayMs || 100;
 const TIMEOUT_MS = config.settings?.requestTimeoutMs || 30000;

@@ -34,14 +34,8 @@ const YELLOW = '\x1b[33m';
 const BOLD = '\x1b[1m';
 const RESET = '\x1b[0m';
 
-/** Load config — fall back to example if config.js doesn't exist */
-let config;
-try {
-  config = (await import(path.join(ROOT, 'config.js'))).default;
-} catch {
-  console.warn('config.js not found — using config.example.js defaults');
-  config = (await import(path.join(ROOT, 'config.example.js'))).default;
-}
+import { loadConfig } from '../lib/load-config.js';
+const config = await loadConfig();
 
 /** Track pass/fail results */
 const results = { passed: 0, failed: 0, warnings: 0, checks: [] };

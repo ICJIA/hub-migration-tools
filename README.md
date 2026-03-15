@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 2.1.0 ([Changelog](CHANGELOG.md))
+**Version:** 2.2.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -101,21 +101,41 @@ The actual Strapi 3 model schemas are stored in [`schemas/`](schemas/) for refer
 
 ### Configuration
 
-All scripts read from a single config file at the project root. Copy the example and customize:
+All scripts read from a single config file at the project root. Two profiles are provided:
+
+| Profile | Strapi 3 | Strapi 5 | Use case |
+|---|---|---|---|
+| `config.dev.js` | `researchhub.icjia-api.cloud` (remote) | `localhost:1338` (local Mac) | Development testing |
+| `config.prod.js` | `researchhub.icjia-api.cloud` (remote) | `researchhub2.icjia-api.cloud` (remote DO) | Production migration |
+
+**Quick start:**
 
 ```bash
 pnpm install
-cp config.example.js config.js
+
+# For local dev testing:
+cp config.dev.js config.js
+
+# For production migration:
+cp config.prod.js config.js
 ```
 
-**Defaults** (work out of the box for most cases):
-- **Strapi 3:** `https://researchhub.icjia-api.cloud` (production ResearchHub API)
-- **Strapi 5:** `http://localhost:1338` (local development instance)
-- **API tokens:** Empty — set via `STRAPI3_TOKEN` / `STRAPI5_TOKEN` env vars or in `config.js`
+**Or use `MIGRATION_ENV` without copying:**
+
+```bash
+MIGRATION_ENV=dev pnpm migrate:phase01
+MIGRATION_ENV=prod pnpm migrate:phase02
+```
+
+**API tokens:** Set via environment variables or directly in `config.js`:
+
+```bash
+export STRAPI5_TOKEN="your-token-here"
+```
 
 Every script prints its configuration at startup so you can verify target URLs before it runs. See [`config.example.js`](config.example.js) for all available settings.
 
-> **Security:** `config.js` is gitignored because it may contain API tokens. Never commit it.
+> **Security:** `config.js` is gitignored because it may contain API tokens. Never commit it. The `config.dev.js` and `config.prod.js` profile files are committed but use `process.env` for tokens.
 
 ### Resetting
 

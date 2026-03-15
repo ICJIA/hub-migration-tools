@@ -20,6 +20,20 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.2.0] - 2026-03-15
+
+### Added
+- Environment profiles for dev vs production migration:
+  - `config.dev.js` — remote Strapi 3 + local Strapi 5 (localhost:1338)
+  - `config.prod.js` — remote Strapi 3 + remote Strapi 5 (researchhub2.icjia-api.cloud)
+  - `MIGRATION_ENV` environment variable support (e.g., `MIGRATION_ENV=prod`)
+- `migration/lib/load-config.js` — shared config loader with profile resolution
+- All 17 scripts now use the shared `loadConfig()` for consistent config handling
+
+### Changed
+- README Configuration section rewritten with profile table and MIGRATION_ENV usage
+- Production config uses longer timeouts (60s) and slower request delays (200ms)
+
 ## [2.1.0] - 2026-03-15
 
 ### Added

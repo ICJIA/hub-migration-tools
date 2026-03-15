@@ -36,13 +36,8 @@ const ROOT = path.resolve(__dirname, '../..');
 const RED = '\x1b[31m';
 const RESET = '\x1b[0m';
 
-// Load config
-let config;
-try {
-  config = (await import(path.join(ROOT, 'config.js'))).default;
-} catch {
-  config = (await import(path.join(ROOT, 'config.example.js'))).default;
-}
+import { loadConfig } from '../lib/load-config.js';
+const config = await loadConfig();
 
 async function main() {
   console.log('=== Phase 1b: Generate Strapi 5 Schemas ===\n');

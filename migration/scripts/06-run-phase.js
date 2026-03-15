@@ -47,13 +47,8 @@ const RESET = '\x1b[0m';
 
 // ── Config ───────────────────────────────────────────────────────────
 
-/** @type {import('../../config.example.js').default} */
-let config;
-try {
-  config = (await import(path.join(ROOT, 'config.js'))).default;
-} catch {
-  config = (await import(path.join(ROOT, 'config.example.js'))).default;
-}
+import { loadConfig } from '../lib/load-config.js';
+const config = await loadConfig();
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
