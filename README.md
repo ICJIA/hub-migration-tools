@@ -7,7 +7,7 @@ A complete, automated migration tool for converting a legacy Strapi 3 (MongoDB) 
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 2.9.0 ([Changelog](CHANGELOG.md))
+**Version:** 3.0.0 ([Changelog](CHANGELOG.md))
 
 ---
 

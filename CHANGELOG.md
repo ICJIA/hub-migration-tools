@@ -20,6 +20,28 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [3.0.0] - 2026-03-15
+
+### Added
+- `pnpm reset` — one command to delete Strapi 5 DB, clean migration data, then chain
+  into `set-strapi5` → `phase01` automatically
+- `pnpm set-strapi5` now launches Phase 1 after saving config (prompt, default Y)
+- `migration/scripts/reset-strapi5.js` — full reset with guided flow
+- Schema: `slug` fields now `uid` type with `targetField: "title"` (auto-generated, unique)
+- Schema: `markdown` field now `richtext` (large rich text editor in Strapi 5 admin)
+- Load script handles slug collisions: appends legacyId suffix for duplicate slugs
+- Audit script: slug suffixes flagged as EXPECTED, unrestored timestamps as INFO
+
+### Changed
+- All config profiles default Strapi 5 to `http://localhost:1338`
+  (use `pnpm set-strapi5` to change for production)
+- `set-strapi5` prompt defaults to `localhost:1338` (not previous URL)
+- Phase 5 success message now reminds to run Phase 6
+
+### Fixed
+- `legacyId`: removed `writable: false` that blocked API writes during migration
+- Slug collision: "Victim Needs Assessment" duplicate now loads with suffixed slug
+
 ## [2.9.0] - 2026-03-15
 
 ### Changed
