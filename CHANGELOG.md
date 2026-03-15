@@ -20,6 +20,30 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.3.0] - 2026-03-15
+
+### Fixed
+- Phase 1c verification: handle all expected Strapi 3→5 GraphQL type differences
+  (_connection fields, _id removal, DateTime→Date, nullable wrappers, 403 as passing)
+- Phase 4 verification: use indexed populate params for Strapi 5 REST API
+- Phase 5 validation: fix ID map lookups (object key, not array.find); fix documentId property name
+- Phase 6 audit: use indexed populate params; handle date format (DateTime→Date) and null→false
+  boolean defaults as EXPECTED differences
+- Strapi 5 boilerplate: use CommonJS require() instead of ESM import (Strapi 5 defaults to CJS)
+- Default Strapi 5 DB path corrected to `strapi5-researchhub`
+- Native module compilation: npm install for better-sqlite3 in migration project
+
+### Changed
+- Production Strapi 5 URL updated to `researchhubv2.icjia-api.cloud`
+
+### Results
+- Local migration completed successfully against production Strapi 3
+  (researchhub.icjia-api.cloud) and local Strapi 5 (localhost:1338):
+  - 295 records (246 articles, 35 datasets, 14 apps)
+  - 1,331 media files (239 splash, 239 thumbnail, 613 inline, 14 app images, 241 upload-plugin files)
+  - Phase 5: 10/10 validation checks passed
+  - Phase 6: 0 ERRORs, 1,315 EXPECTED, 6 INFO, 5,571 OK across 6,877 fields
+
 ## [2.2.0] - 2026-03-15
 
 ### Added

@@ -21,8 +21,8 @@ export default {
   },
 
   strapi5: {
-    graphqlUrl: 'https://researchhub2.icjia-api.cloud/graphql',
-    apiUrl: 'https://researchhub2.icjia-api.cloud',
+    graphqlUrl: 'https://researchhubv2.icjia-api.cloud/graphql',
+    apiUrl: 'https://researchhubv2.icjia-api.cloud',
     token: process.env.STRAPI5_TOKEN || '',  // REQUIRED — create in Strapi 5 admin → Settings → API Tokens
     dbPath: process.env.STRAPI5_DB_PATH || '',  // SSH to server: /home/forge/researchhub2.icjia-api.cloud/.tmp/data.db
   },
