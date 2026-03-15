@@ -20,6 +20,13 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.7.0] - 2026-03-15
+
+### Added
+- README: detailed "Migration Checklist" section with per-phase, per-step checkbox items
+  covering every operation from schema introspection through post-migration QA
+- README Quick Start: Step 0 with pnpm/Node.js installation instructions
+
 ## [2.6.0] - 2026-03-15
 
 ### Added

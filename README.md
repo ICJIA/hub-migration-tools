@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 2.6.0 ([Changelog](CHANGELOG.md))
+**Version:** 2.7.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -21,6 +21,22 @@ This walkthrough takes you from zero to a fully migrated Strapi 5 instance. It a
 - You have Node.js 18+ and pnpm installed
 
 > **Test locally first.** The entire migration runs on `localhost:1338` — no cloud server needed. The scripts read from the remote Strapi 3 API and write to your local Strapi 5. Run it on your machine, verify it works, browse the admin panel, and check everything looks right. Only then set up a production Strapi 5 instance on a cloud server and run the migration again against the production URL. Testing locally costs nothing and catches issues before they matter.
+
+### Step 0: Install prerequisites
+
+```bash
+# Install Node.js 22 (if not already installed)
+# Using nvm (recommended):
+nvm install 22
+nvm use 22
+
+# Install pnpm globally
+npm install -g pnpm
+
+# Verify
+node --version   # should be v22.x
+pnpm --version   # should be 10.x+
+```
 
 ### Step 1: Clone and install the migration project
 
@@ -216,6 +232,249 @@ Once you're satisfied with the local test:
 4. If new content was added to Strapi 3 since your local test: `pnpm sync` catches it up
 
 The production run follows the exact same steps — the only difference is the Strapi 5 URL and token in `config.js`.
+
+---
+
+## Migration Checklist
+
+A detailed visual checklist of everything each phase does. Use this to track progress and understand the full migration pipeline.
+
+### Phase 1: Schema Setup (`pnpm migrate:phase01`)
+
+**Introspection (01a):**
+- [ ] Connect to Strapi 3 GraphQL at `researchhub.icjia-api.cloud`
+- [ ] Run GraphQL introspection query to discover all content types and fields
+- [ ] Read local Strapi 3 model files from `schemas/` directory (authoritative source)
+- [ ] Merge GraphQL data with model file data into unified schema representation
+- [ ] Save introspection results to `migration/data/introspection/strapi3.json`
+- [ ] Save parsed model data to `migration/data/introspection/strapi3-models.json`
+
+**Schema Generation (01b):**
+- [ ] Read Strapi 3 model data and field type mapping rules
+- [ ] Convert each field type: `string` → `string`, `text` → `text`, `json` → `json`, etc.
+- [ ] Apply overrides: `article.splash` string → `media`, `article.thumbnail` string → `media`, `app.image` string → `media`
+- [ ] Convert upload plugin fields: `mainfile`, `extrafile`, `datafile` → `media` type
+- [ ] Convert relations with correct dominance: article↔dataset (article dominant), article↔app (app dominant), app↔dataset (app dominant)
+- [ ] Add `legacyId` (string, unique) to every content type for migration traceability
+- [ ] Set `draftAndPublish: false` on all content types
+- [ ] Put `title` before `legacyId` in attribute order (so admin panel shows titles in relation pickers)
+- [ ] Generate CommonJS boilerplate files (routes, controllers, services) for each content type
+- [ ] Write schema.json files to `migration/output/strapi5-schemas/`
+- [ ] Write field mapping reference to `migration/config/field-map.json`
+- [ ] Auto-copy generated schemas to the Strapi 5 project `src/api/` directory
+
+**Verification (01c):**
+- [ ] Poll Strapi 5 until it responds (up to 60 seconds)
+- [ ] Run GraphQL introspection against Strapi 5
+- [ ] Diff Strapi 3 vs Strapi 5 schemas
+- [ ] Confirm all 3 content types exist: Article, Dataset, App
+- [ ] Confirm all fields present with correct types
+- [ ] Confirm `splash`, `thumbnail`, `image` changed from String to media (EXPECTED)
+- [ ] Confirm `mainfile`, `extrafile`, `datafile` are media fields
+- [ ] Confirm `legacyId` field exists on all 3 types
+- [ ] Confirm relation fields are correctly defined (triangle graph)
+- [ ] Confirm REST API responds for all content types
+- [ ] Save schema diff to `migration/data/introspection/schema-diff.json`
+
+### Phase 2: Data Extraction (`pnpm migrate:phase02`)
+
+**Extraction (02-extract):**
+- [ ] Connect to Strapi 3 GraphQL endpoint
+- [ ] Extract all articles (~246 records) with paginated queries (100 per page)
+  - [ ] All scalar fields: title, status, slug, date, abstract, markdown, funding, citation, doi, etc.
+  - [ ] Base64 fields: splash, thumbnail (raw Base64 strings preserved)
+  - [ ] JSON fields: categories, tags, authors, images
+  - [ ] Media references: mainfile, extrafile (url, name, mime, size, ext)
+  - [ ] Relations: datasets (id, title, slug), apps (id, title)
+  - [ ] Timestamps: createdAt, updatedAt
+- [ ] Extract all datasets (~35 records)
+  - [ ] All scalar + JSON fields
+  - [ ] Media reference: datafile (url, name, mime, size, ext)
+  - [ ] Relations: apps, articles
+- [ ] Extract all apps (~14 records)
+  - [ ] All scalar fields including Base64 `image`
+  - [ ] JSON fields: contributors, categories, tags
+  - [ ] Relations: datasets, articles
+- [ ] Save to `migration/data/raw/articles.json`, `datasets.json`, `apps.json`
+- [ ] Save extraction manifest with counts and metadata
+- [ ] Verify counts against Strapi 3 REST count endpoints
+
+**Verification (02-verify):**
+- [ ] All 3 JSON files parse successfully
+- [ ] Manifest counts match actual file record counts
+- [ ] Every record has a valid MongoDB ObjectId (`/^[a-f0-9]{24}$/`)
+- [ ] Every record has `createdAt` and `updatedAt` (non-null)
+- [ ] No duplicate IDs within any file
+- [ ] Article relation arrays (`datasets[]`, `apps[]`) present on all records
+- [ ] Article media references (`mainfile`, `extrafile`) well-formed when non-null
+- [ ] Dataset `datafile` objects well-formed when non-null
+- [ ] Dataset and app relation arrays present
+- [ ] App `image` field captured
+- [ ] Record counts match Strapi 3 REST endpoints
+
+### Phase 3: Base64 Extraction & Media Migration (`pnpm migrate:phase03`)
+
+**Scan (03a):**
+- [ ] Scan all 246 articles for Base64 data:
+  - [ ] `splash` field — detect Base64 data URI or raw Base64
+  - [ ] `thumbnail` field — same detection
+  - [ ] `images` JSON field — log structure for investigation
+  - [ ] `markdown` field — regex scan for `![alt](data:image/...;base64,...)`
+  - [ ] HTML fallback — scan for `<img>` tags with Base64 src
+- [ ] Scan all 14 apps for Base64 in `image` field
+- [ ] Generate filenames: `{slug}-splash.{ext}`, `{slug}-thumbnail.{ext}`, `{slug}-{NNN}.{ext}`, `app-{slug}-image.{ext}`
+- [ ] Detect MIME types from data URI prefix or magic bytes (PNG, JPEG, GIF, WebP)
+- [ ] Save manifest to `migration/data/media/manifest.json`
+
+**Decode (03b):**
+- [ ] Read each manifest entry
+- [ ] Strip whitespace, newlines, and data URI prefix from Base64 string
+- [ ] Decode with `Buffer.from(base64, 'base64')`
+- [ ] Validate decoded file: size > 0, magic bytes match MIME type
+- [ ] Save to `migration/data/media/files/{filename}`
+- [ ] Log failures but continue processing (don't abort)
+
+**Upload (03c):**
+- [ ] Upload each decoded file to Strapi 5 `/api/upload` endpoint
+- [ ] Check for existing files by name (idempotent — skip if already uploaded)
+- [ ] Record mapping in `migration/data/maps/media.json`: filename → strapi5MediaId, strapi5Url
+- [ ] Configurable delay between uploads (100ms default)
+
+**Rewrite Articles (03d):**
+- [ ] Replace `splash` Base64 → integer Strapi 5 media ID
+- [ ] Replace `thumbnail` Base64 → integer Strapi 5 media ID
+- [ ] Replace each inline markdown Base64 image → `/uploads/{filename}` URL
+- [ ] Replace HTML `<img>` Base64 images
+- [ ] Map `id` → `legacyId`
+- [ ] Preserve `createdAt` → `_originalCreatedAt`, `updatedAt` → `_originalUpdatedAt`
+- [ ] Preserve `_relatedDatasetIds` (article is dominant on article↔dataset)
+- [ ] Do NOT include `_relatedAppIds` (article is non-dominant on article↔app)
+- [ ] Post-rewrite scan: confirm zero `data:image/` substrings remain
+- [ ] Save to `migration/data/transformed/articles.json`
+
+**Transform Datasets, Article Media & Apps (03e):**
+- [ ] Download each dataset `datafile` from Strapi 3, re-upload to Strapi 5
+- [ ] Download each article `mainfile` from Strapi 3, re-upload to Strapi 5
+- [ ] Download each article `extrafile` from Strapi 3, re-upload to Strapi 5
+- [ ] Update media IDs in transformed article data
+- [ ] Transform datasets: all fields + `legacyId` + timestamps
+- [ ] Transform apps: all fields + `legacyId` + timestamps + `_relatedDatasetIds` + `_relatedArticleIds` (app is dominant on both)
+- [ ] Replace app `image` Base64 → Strapi 5 media ID
+- [ ] Save `migration/data/transformed/datasets.json` and `apps.json`
+
+**Verification (03-verify):**
+- [ ] Manifest exists with valid images array
+- [ ] No duplicate filenames
+- [ ] Decoded file count matches manifest (minus failures)
+- [ ] All files > 0 bytes with valid magic bytes
+- [ ] Media map has entries for all decoded files
+- [ ] All media URLs accessible in Strapi 5 (HTTP 200)
+- [ ] Zero `data:image/` substrings in transformed article markdown
+- [ ] Splash parity: Base64 count in raw = integer ID count in transformed
+- [ ] Thumbnail parity: same
+- [ ] App image parity: same
+- [ ] Mainfile/extrafile/datafile parity: media ref count matches
+- [ ] All records have `legacyId`, `_originalCreatedAt`, `_originalUpdatedAt`
+- [ ] No article has `_relatedAppIds`
+- [ ] All apps have `_relatedDatasetIds` and `_relatedArticleIds`
+
+### Phase 4: Data Loading & Timestamp Restoration (`pnpm migrate:phase04`)
+
+**Load Content (04-load):**
+- [ ] Load datasets first (35 records) — no outbound dominant relations
+  - [ ] Check `legacyId` for duplicates before each POST (idempotent)
+  - [ ] POST to `/api/datasets` with all fields + `datafile` media ID
+  - [ ] Capture `documentId` from response
+- [ ] Load apps second (14 records) — dominant on 2 relations
+  - [ ] POST to `/api/apps` with all fields + `image` media ID
+  - [ ] Relations NOT included yet (linked in next step)
+- [ ] Load articles last (246 records) — dominant on article↔dataset
+  - [ ] POST to `/api/articles` with all fields + `splash`, `thumbnail`, `mainfile`, `extrafile` media IDs
+  - [ ] Relations NOT included yet
+- [ ] Save ID maps: `migration/data/maps/articles.json`, `datasets.json`, `apps.json`
+- [ ] Save load report: `migration/data/load-report.json`
+
+**Link Relations (04b-link-relations):**
+- [ ] Pass 1 — Article → datasets (article is dominant):
+  - [ ] For each article with `_relatedDatasetIds`: translate Strapi 3 IDs → Strapi 5 documentIds
+  - [ ] PUT `/api/articles/{docId}` with `{ datasets: { connect: [...] } }`
+- [ ] Pass 2 — App → articles AND app → datasets (app is dominant for both):
+  - [ ] For each app: translate `_relatedArticleIds` and `_relatedDatasetIds`
+  - [ ] PUT `/api/apps/{docId}` with `{ articles: { connect: [...] }, datasets: { connect: [...] } }`
+- [ ] Warn (don't fail) if a related ID isn't found in the map
+
+**Restore Timestamps (04c-fix-timestamps):**
+- [ ] Stop Strapi 5 (prompted by orchestrator)
+- [ ] Open SQLite database with `better-sqlite3`
+- [ ] Verify actual table names via `sqlite_master` (likely plural: articles, datasets, apps)
+- [ ] Verify column names via `PRAGMA table_info` (likely snake_case)
+- [ ] For each record: `UPDATE {table} SET created_at=?, updated_at=? WHERE document_id=?`
+- [ ] Set "Entry title" to `title` for all content types (admin panel display fix)
+- [ ] Sample verification: print 5 records with restored timestamps
+- [ ] Close database
+- [ ] Restart Strapi 5 (prompted by orchestrator)
+
+**Verification (04-verify):**
+- [ ] Record counts match: 246 articles, 35 datasets, 14 apps
+- [ ] ID maps complete: every transformed record has a map entry
+- [ ] No duplicate `legacyId` values (SQLite query)
+- [ ] Every record has a non-null `legacyId`
+- [ ] Article → dataset relations correct (sample check)
+- [ ] App → article relations correct (sample check)
+- [ ] App → dataset relations correct (sample check)
+- [ ] All timestamps are historic (predate migration day)
+- [ ] Splash, thumbnail, mainfile, extrafile media relations set
+- [ ] App image media relations set
+- [ ] Dataset datafile media relations set
+- [ ] Load report exists
+
+### Phase 5: Validation (`pnpm migrate:phase05`)
+
+**10 Automated Checks (05-validate):**
+- [ ] Check 1: Record counts — Strapi 3 REST vs Strapi 5 REST for all 3 types
+- [ ] Check 2: Legacy ID coverage — every Strapi 3 `id` maps to exactly one Strapi 5 `legacyId`
+- [ ] Check 3: Zero Base64 remnants — scan article `markdown`, `abstract`, app/dataset `description`
+- [ ] Check 4: Image/media migration — articles with splash/thumbnail/mainfile/extrafile, apps with image → all have media objects
+- [ ] Check 5: Dataset file migration — all datasets with datafile have media relations
+- [ ] Check 6: Media accessibility — HEAD request every URL in media.json → HTTP 200
+- [ ] Check 7: Relation integrity — all 3 m2m sets match between transformed data and Strapi 5
+- [ ] Check 8: Timestamp preservation — SQLite `created_at`/`updated_at` match `_originalCreatedAt`/`_originalUpdatedAt` (±1 second)
+- [ ] Check 9: Content integrity — random 10% of articles: title/slug exact match, markdown length plausible
+- [ ] Check 10: No duplicates — SQLite `GROUP BY legacyId HAVING COUNT > 1` returns 0 rows
+- [ ] Save `migration/data/validation-report.json`
+- [ ] Exit 0 if all pass, exit 1 if any fail
+
+### Phase 6: Parity Audit (`pnpm migrate:phase06`)
+
+**Field-by-Field Comparison (06-audit):**
+- [ ] Fetch all records from Strapi 3 (GraphQL, paginated)
+- [ ] Fetch all records from Strapi 5 (REST, paginated, with populated relations and media)
+- [ ] Match records by Strapi 3 `id` ↔ Strapi 5 `legacyId`
+- [ ] Schema-level comparison: field names, types, additions, removals
+- [ ] For EVERY record, compare:
+  - [ ] Scalar fields: title, status, slug, abstract, funding, citation, doi, url, unit, etc. → exact match or ERROR
+  - [ ] Date fields: DateTime format → Date format → EXPECTED
+  - [ ] Boolean fields: null → false → EXPECTED (Strapi 5 default)
+  - [ ] JSON fields: categories, tags, authors, contributors, sources, notes, variables, timeperiod, images → deep-equal
+  - [ ] Markdown field: strip image refs from both, compare remaining text → identical = EXPECTED, different = ERROR
+  - [ ] Base64→media fields: splash, thumbnail, image → was Base64, now media object = EXPECTED
+  - [ ] Upload-plugin fields: mainfile, extrafile, datafile → was media ref, now media object = EXPECTED
+  - [ ] Timestamps: createdAt/updatedAt → ±1 second tolerance
+  - [ ] Relations: compare related record sets by legacyId → exact match or ERROR
+- [ ] Media audit: HEAD request all media URLs, count Base64→media conversions
+- [ ] Categorize every finding: ERROR / EXPECTED / INFO / OK
+- [ ] Save `migration/data/audit-report.json` (structured, per-record)
+- [ ] Save `migration/data/audit-report.md` (human-readable for stakeholders)
+- [ ] Exit 0 if zero ERRORs, exit 1 if any ERRORs
+
+### Post-Migration
+
+- [ ] Manual QA: browse Strapi 5 admin panel, spot-check articles/images/relations
+- [ ] Share `audit-report.md` with stakeholders for sign-off
+- [ ] Back up Strapi 5 SQLite database
+- [ ] If needed: `pnpm sync` to catch up any new Strapi 3 content before cutover
+- [ ] Switch frontend to Strapi 5 API
+- [ ] Monitor for issues during confidence period
 
 ---
 
