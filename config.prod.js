@@ -21,10 +21,10 @@ export default {
   },
 
   strapi5: {
-    graphqlUrl: 'https://researchhubv2.icjia-api.cloud/graphql',
-    apiUrl: 'https://researchhubv2.icjia-api.cloud',
+    graphqlUrl: process.env.STRAPI5_GRAPHQL_URL || 'http://localhost:1338/graphql',
+    apiUrl: process.env.STRAPI5_API_URL || 'http://localhost:1338',
     token: process.env.STRAPI5_TOKEN || '',  // REQUIRED — create in Strapi 5 admin → Settings → API Tokens
-    dbPath: process.env.STRAPI5_DB_PATH || '',  // SSH to server: /home/forge/researchhub2.icjia-api.cloud/.tmp/data.db
+    dbPath: process.env.STRAPI5_DB_PATH || '../strapi5-researchhub/.tmp/data.db',  // For production: set via env var or pnpm set-strapi5
   },
 
   strapi3ProjectPath: '../strapi3-project',
