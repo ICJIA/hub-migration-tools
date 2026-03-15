@@ -51,7 +51,7 @@ export default {
     /** @type {string} Full-access API token for write operations */
     token: process.env.STRAPI5_TOKEN || '',
     /** @type {string} Path to Strapi 5 SQLite database (for timestamp restoration) */
-    dbPath: process.env.STRAPI5_DB_PATH || '../strapi5-project/.tmp/data.db',
+    dbPath: process.env.STRAPI5_DB_PATH || '../strapi5-researchhub/.tmp/data.db',
   },
 
   /**

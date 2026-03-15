@@ -21,7 +21,7 @@ export default {
     graphqlUrl: 'http://localhost:1338/graphql',
     apiUrl: 'http://localhost:1338',
     token: process.env.STRAPI5_TOKEN || '',  // Set after creating token in local Strapi 5 admin
-    dbPath: process.env.STRAPI5_DB_PATH || '../strapi5-project/.tmp/data.db',
+    dbPath: process.env.STRAPI5_DB_PATH || '../strapi5-researchhub/.tmp/data.db',
   },
 
   strapi3ProjectPath: '../strapi3-project',
