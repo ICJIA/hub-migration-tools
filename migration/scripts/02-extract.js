@@ -203,11 +203,19 @@ const QUERIES = {
  * @param {number} limit - Records per page
  * @returns {Promise<Object[]>} All extracted records
  */
+/**
+ * Maximum total records to extract per content type.
+ * Safety valve against infinite pagination loops or compromised servers.
+ * @type {number}
+ */
+const MAX_RECORDS = 10000;
+
 async function extractAll(contentType, query, client, limit) {
   let start = 0;
   let allRecords = [];
   let page;
   let pageNum = 0;
+  const delayMs = config.settings?.requestDelayMs || 0;
 
   do {
     pageNum++;
@@ -220,7 +228,18 @@ async function extractAll(contentType, query, client, limit) {
 
     allRecords = allRecords.concat(records);
     console.log(`  ${contentType}: page ${pageNum} — ${allRecords.length} records so far`);
+
+    if (allRecords.length >= MAX_RECORDS) {
+      console.warn(`  ${YELLOW}WARNING: Hit safety limit of ${MAX_RECORDS} records for ${contentType}. Stopping.${RESET}`);
+      break;
+    }
+
     start += limit;
+
+    // Configurable delay between pages to avoid overwhelming the server
+    if (delayMs > 0 && page.data[contentType].length === limit) {
+      await new Promise(r => setTimeout(r, delayMs));
+    }
   } while (page.data[contentType].length === limit);
 
   return allRecords;
