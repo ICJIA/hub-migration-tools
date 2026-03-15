@@ -20,6 +20,15 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.4.0] - 2026-03-15
+
+### Added
+- README: "Starting Over Completely" section with step-by-step reset instructions
+- Strapi 5 setup guide: "Resetting Strapi 5 for a Fresh Migration" section (local + production)
+- Phase 4c now auto-sets "Entry title" to `title` for all content types (no manual admin config needed)
+- Schema generator puts `title` before `legacyId` so Strapi 5 auto-selects it as relation display label
+- `legacyId` field marked `configurable: false` (non-editable in Strapi 5 admin Content-Type Builder)
+
 ## [2.3.0] - 2026-03-15
 
 ### Fixed

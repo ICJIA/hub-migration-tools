@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 2.3.0 ([Changelog](CHANGELOG.md))
+**Version:** 2.4.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -137,15 +137,49 @@ Every script prints its configuration at startup so you can verify target URLs b
 
 > **Security:** `config.js` is gitignored because it may contain API tokens. Never commit it. The `config.dev.js` and `config.prod.js` profile files are committed but use `process.env` for tokens.
 
-### Resetting
+### Resetting Migration Data
 
-To wipe all generated data and start fresh:
+To wipe all generated migration data and start fresh:
 
 ```bash
-node migration/scripts/00-clean.js    # or: pnpm clean
+pnpm clean
 ```
 
 This removes `migration/data/`, `migration/output/`, and the generated field map. Scripts, libraries, static config, and source schemas are preserved.
+
+### Starting Over Completely (Fresh Strapi 5)
+
+If you need to re-run the entire migration from scratch (e.g., after fixing a script, testing changes, or doing a dry run before production), you can reset both the migration data and the Strapi 5 database:
+
+```bash
+# 1. Stop Strapi 5 (Ctrl+C in its terminal)
+
+# 2. Delete the Strapi 5 database (it will be recreated on next start)
+rm /path/to/strapi5-project/.tmp/data.db
+
+# 3. Clean migration data
+pnpm clean
+
+# 4. Restart Strapi 5 — it recreates the DB from the existing schema files
+cd /path/to/strapi5-project && npm run develop
+
+# 5. Create a new admin user at http://localhost:1338/admin
+
+# 6. Create a new Full Access API token (Settings → API Tokens)
+#    Update config.js with the new token
+
+# 7. Run all phases again
+pnpm migrate:phase01
+pnpm migrate:phase02
+pnpm migrate:phase03
+pnpm migrate:phase04
+pnpm migrate:phase05
+pnpm migrate:phase06
+```
+
+> **This is safe and expected.** The migration is designed to be re-runnable. Deleting the Strapi 5 database gives you a clean slate — the schema files in `src/api/` remain intact so Strapi 5 recreates the correct tables automatically. You do NOT need a new Strapi 5 project.
+
+> **Why re-run?** Common reasons include: testing the migration end-to-end before production, verifying a bug fix in a script, or doing a practice run. The Phase 5 validation and Phase 6 audit confirm everything is correct after each run.
 
 ### Phase 1: Schema Setup
 

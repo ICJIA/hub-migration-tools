@@ -241,3 +241,46 @@ Set this path in the migration config:
 ```bash
 export STRAPI5_DB_PATH="/home/forge/researchhub2.icjia-api.cloud/.tmp/data.db"
 ```
+
+## Resetting Strapi 5 for a Fresh Migration
+
+If you need to re-run the migration from scratch (dry run, bug fix, or testing), you do NOT need a new Strapi 5 project. Just delete the database:
+
+```bash
+# 1. Stop Strapi 5 (Ctrl+C)
+
+# 2. Delete the database
+rm .tmp/data.db
+
+# 3. Restart Strapi 5 — it recreates the DB from the schema files in src/api/
+npm run develop
+```
+
+After restarting:
+- The schema files in `src/api/` are still there — Strapi 5 recreates the correct tables automatically
+- You need to create a **new admin user** (first visit to `/admin`)
+- You need to create a **new API token** (Settings → API Tokens → Full access) and update `config.js` in the migration project
+- Then run all migration phases again from Phase 1
+
+This is safe and expected. The migration scripts are idempotent and designed for repeated runs.
+
+### Production: Resetting a Remote Instance
+
+For a remote Strapi 5 instance on a DigitalOcean droplet:
+
+```bash
+# SSH into the server
+ssh forge@your-droplet-ip
+
+# Stop Strapi 5
+pm2 stop strapi5-researchhub
+
+# Delete the database
+rm /home/forge/researchhubv2.icjia-api.cloud/.tmp/data.db
+
+# Restart — recreates the DB
+pm2 start strapi5-researchhub
+
+# Create new admin user + API token via the browser
+# Then update config.js in the migration project with the new token
+```
