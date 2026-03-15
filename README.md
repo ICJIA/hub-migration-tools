@@ -34,11 +34,18 @@ We use an **API-to-API transfer** rather than direct database conversion:
 
 All three content types are interconnected in a triangle:
 
+```mermaid
+graph LR
+    A[Article<br/>~250 records] -->|m2m<br/>article dominant| D[Dataset<br/>~42 records]
+    AP[App<br/>~15 records] -->|m2m<br/>app dominant| A
+    AP -->|m2m<br/>app dominant| D
+
+    style A fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style D fill:#50b87a,stroke:#2d7a4d,color:#fff
+    style AP fill:#e8a838,stroke:#b07a1a,color:#fff
 ```
-article ──m2m── dataset   (article dominant)
-article ──m2m── app       (app dominant)
-app     ──m2m── dataset   (app dominant)
-```
+
+> **Dominant side** owns the join table and is responsible for linking relations during Phase 4. Arrows point from dominant → non-dominant.
 
 ## Project Phases
 
