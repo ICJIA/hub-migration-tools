@@ -22,6 +22,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createInterface } from 'readline';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -166,6 +167,73 @@ async function readModelFiles() {
   return models;
 }
 
+/**
+ * Check if the migration/data or migration/output directories contain
+ * data from a previous run, and prompt the user to clean before proceeding.
+ *
+ * @returns {Promise<void>} Resolves when clean is confirmed or skipped
+ */
+async function checkForStaleData() {
+  const dataDir = path.resolve(ROOT, 'migration/data');
+  const outputDir = path.resolve(ROOT, 'migration/output');
+
+  let hasData = false;
+  try {
+    const entries = await fs.readdir(dataDir);
+    if (entries.length > 0) hasData = true;
+  } catch { /* doesn't exist — fine */ }
+
+  try {
+    const entries = await fs.readdir(outputDir);
+    if (entries.length > 0) hasData = true;
+  } catch { /* doesn't exist — fine */ }
+
+  if (!hasData) return;
+
+  console.log(`\n${YELLOW}Previous migration data detected in migration/data/ and/or migration/output/.${RESET}`);
+  console.log(`${YELLOW}Starting fresh ensures no stale data interferes with this run.${RESET}\n`);
+
+  const answer = await promptYesNo('Clean migration directory before proceeding? [Y/n] ');
+
+  if (answer) {
+    for (const target of ['migration/data', 'migration/output', 'migration/config/field-map.json']) {
+      const absPath = path.resolve(ROOT, target);
+      try {
+        const stat = await fs.stat(absPath);
+        if (stat.isDirectory()) {
+          await fs.rm(absPath, { recursive: true });
+          console.log(`  ${GREEN}✓${RESET} Removed: ${target}/`);
+        } else {
+          await fs.unlink(absPath);
+          console.log(`  ${GREEN}✓${RESET} Removed: ${target}`);
+        }
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err;
+      }
+    }
+    console.log(`${GREEN}Clean complete.${RESET}\n`);
+  } else {
+    console.log('Skipping clean — existing data will be overwritten where applicable.\n');
+  }
+}
+
+/**
+ * Prompt the user with a yes/no question. Default is Y (enter = yes).
+ *
+ * @param {string} question - The prompt text
+ * @returns {Promise<boolean>} True if user answered yes (or pressed enter)
+ */
+function promptYesNo(question) {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(question, (answer) => {
+      rl.close();
+      const trimmed = answer.trim().toLowerCase();
+      resolve(trimmed === '' || trimmed === 'y' || trimmed === 'yes');
+    });
+  });
+}
+
 async function main() {
   console.log('=== Phase 1a: Introspect Strapi 3 ===');
 
@@ -176,6 +244,9 @@ async function main() {
   console.log(`  Strapi 3 token:   ${config.strapi3.token ? '(set)' : '(not set)'}`);
   console.log(`  Schemas dir:      ${config.paths.schemas}`);
   console.log(`  Content types:    ${config.contentTypes.join(', ')}`);
+
+  // Check for stale data and offer to clean
+  await checkForStaleData();
 
   // Run both data collection tasks
   const [gqlResult, models] = await Promise.all([
