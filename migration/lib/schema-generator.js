@@ -127,6 +127,21 @@ function convertAttribute(ctName, fieldName, def, fieldTypeMap, relationGraph) {
     return { ...fieldTypeMap.overrides[overrideKey].to };
   }
 
+  // Slug fields → uid type with auto-generation from title
+  if (fieldName === 'slug' && def.type === 'string') {
+    return {
+      type: 'uid',
+      targetField: 'title',
+    };
+  }
+
+  // Markdown/body field → richtext for large editing experience in admin
+  if (fieldName === 'markdown' && (def.type === 'text' || def.type === 'richtext')) {
+    return {
+      type: 'richtext',
+    };
+  }
+
   // Standard typed field — map type and preserve constraints
   if (def.type) {
     const mappedType = fieldTypeMap.directMappings?.[def.type] || def.type;
@@ -212,9 +227,14 @@ function generateSchema(ctName, model, fieldTypeMap, relationGraph) {
     type: 'string',
     unique: true,
     configurable: false,
+    writable: false,
     pluginOptions: {
       'content-manager': {
-        editableField: false,
+        editable: false,
+        list: {
+          searchable: true,
+          sortable: true,
+        },
       },
     },
   };
