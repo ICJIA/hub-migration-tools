@@ -20,6 +20,8 @@ This walkthrough takes you from zero to a fully migrated Strapi 5 instance. It a
 - You're testing locally on your Mac before deploying to a production Strapi 5 server
 - You have Node.js 18+ and pnpm installed
 
+> **Test locally first.** The entire migration runs on `localhost:1338` — no cloud server needed. The scripts read from the remote Strapi 3 API and write to your local Strapi 5. Run it on your machine, verify it works, browse the admin panel, and check everything looks right. Only then set up a production Strapi 5 instance on a cloud server and run the migration again against the production URL. Testing locally costs nothing and catches issues before they matter.
+
 ### Step 1: Clone and install the migration project
 
 ```bash
@@ -200,14 +202,20 @@ Open your Strapi 5 admin panel (`http://localhost:1338/admin`) and spot-check:
 - App dashboard links work
 - Publication dates are historic (not migration day)
 
-### You're done!
+### You're done! (Locally)
 
-Your local Strapi 5 instance is a verified copy of the production Strapi 3 data. When you're ready to deploy to production:
+Your local Strapi 5 instance at `localhost:1338` is a verified copy of the production Strapi 3 data. Browse the admin panel, check the content, verify relations — everything is real data from the production Strapi 3.
+
+### When ready for production
+
+Once you're satisfied with the local test:
+
 1. Set up a Strapi 5 instance on DigitalOcean (see [Strapi 5 Setup Guide](docs/STRAPI5-SETUP.md))
 2. Point the migration at the production URL: `pnpm set-strapi5`
-3. Run all phases again: `pnpm migrate:phase01` through `pnpm migrate:phase06`
+3. Clean and re-run: `pnpm migrate:clean` then `pnpm migrate:phase01` through `pnpm migrate:phase06`
+4. If new content was added to Strapi 3 since your local test: `pnpm sync` catches it up
 
-If new content is added to Strapi 3 before you switch over, run `pnpm sync` to catch up.
+The production run follows the exact same steps — the only difference is the Strapi 5 URL and token in `config.js`.
 
 ---
 
