@@ -22,7 +22,8 @@
     "verify": "node migration/scripts/01c-verify-schemas.js",
     "validate": "node migration/scripts/05-validate.js",
     "sync": "node migration/scripts/07-sync.js",
-    "set-strapi5": "node migration/scripts/set-strapi5-url.js"
+    "set-strapi5": "node migration/scripts/set-strapi5-url.js",
+    "reset": "node migration/scripts/reset-strapi5.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1"
