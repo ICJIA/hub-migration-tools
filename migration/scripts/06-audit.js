@@ -209,15 +209,15 @@ query GetApps($start: Int!, $limit: Int!) {
 const CONTENT_TYPES = {
   articles: {
     query: ARTICLE_QUERY,
-    s5Populate: 'populate[splash]=*&populate[thumbnail]=*&populate[mainfile]=*&populate[extrafile]=*&populate[datasets][fields][0]=legacyId&populate[apps][fields][0]=legacyId',
+    s5Populate: 'populate[0]=splash&populate[1]=thumbnail&populate[2]=mainfile&populate[3]=extrafile&populate[4]=datasets&populate[5]=apps',
   },
   datasets: {
     query: DATASET_QUERY,
-    s5Populate: 'populate[datafile]=*&populate[apps][fields][0]=legacyId&populate[articles][fields][0]=legacyId',
+    s5Populate: 'populate[0]=datafile&populate[1]=apps&populate[2]=articles',
   },
   apps: {
     query: APP_QUERY,
-    s5Populate: 'populate[image]=*&populate[datasets][fields][0]=legacyId&populate[articles][fields][0]=legacyId',
+    s5Populate: 'populate[0]=image&populate[1]=datasets&populate[2]=articles',
   },
 };
 
