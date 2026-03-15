@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 0.7.0 ([Changelog](CHANGELOG.md))
+**Version:** 0.8.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -112,6 +112,16 @@ This removes `migration/data/`, `migration/output/`, and the generated field map
 ### Phase 1: Schema Setup
 
 Generates Strapi 5 content type schemas from the Strapi 3 model definitions. See [`migration/scripts/README.md`](migration/scripts/README.md) for detailed script documentation.
+
+**Recommended — run the interactive orchestrator:**
+
+```bash
+pnpm migrate:phase01
+```
+
+This walks you through all steps with prompts, explains what's needed at each stage, and gives clear recovery instructions if anything fails. You can pause and resume at any point.
+
+**Or run each step individually:**
 
 ```bash
 # Step 1: Read Strapi 3 schemas (works without Strapi 3 running — uses local files)

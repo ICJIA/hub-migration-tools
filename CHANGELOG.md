@@ -9,6 +9,14 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [0.8.0] - 2026-03-15
+
+### Added
+- `migration/scripts/01-run-phase.js` — Phase 1 orchestrator that runs all steps
+  in sequence with interactive prompts, graceful failure recovery, and clear
+  instructions for resuming from any failed step
+- `pnpm migrate:phase01` shortcut in package.json
+
 ## [0.7.0] - 2026-03-15
 
 ### Added

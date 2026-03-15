@@ -74,6 +74,18 @@ node migration/scripts/00-clean.js    # or: pnpm clean
 
 ## Phase 1: Introspection & Schema Generation
 
+### `01-run-phase.js` (recommended)
+
+**What it does:** Orchestrates all Phase 1 steps in sequence with interactive prompts. This is the easiest way to run Phase 1 — it handles the flow, explains what's happening at each step, and gives clear recovery instructions if anything fails.
+
+```bash
+node migration/scripts/01-run-phase.js    # or: pnpm migrate:phase01
+```
+
+The orchestrator runs: `01a` → `01b` → (manual copy + start Strapi 5) → `01c`, with confirmation prompts between each step. If a step fails, it tells you exactly which script to re-run — you don't need to start Phase 1 over.
+
+You can also run each script individually (see below) if you prefer.
+
 ### `01a-introspect.js`
 
 **What it does:** Reads Strapi 3 model schemas and optionally runs a GraphQL introspection query against the Strapi 3 instance.
