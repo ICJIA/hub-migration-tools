@@ -9,6 +9,14 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [0.8.2] - 2026-03-15
+
+### Fixed
+- Removed Claude co-author lines from all git history (rebase via git-filter-repo)
+
+### Added
+- README: Mermaid diagram for the relation graph (renders natively on GitHub with colors and dominance arrows)
+
 ## [0.8.1] - 2026-03-15
 
 ### Fixed
