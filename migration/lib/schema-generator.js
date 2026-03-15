@@ -211,6 +211,12 @@ function generateSchema(ctName, model, fieldTypeMap, relationGraph) {
   schema.attributes.legacyId = {
     type: 'string',
     unique: true,
+    configurable: false,
+    pluginOptions: {
+      'content-manager': {
+        editableField: false,
+      },
+    },
   };
 
   Object.assign(schema.attributes, scalarAttrs, relationAttrs);
