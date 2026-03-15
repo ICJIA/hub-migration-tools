@@ -9,6 +9,15 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [3.2.0] - 2026-03-15
+
+### Added
+- README: "When ready for production" section with architecture diagram showing
+  Mac → Strapi 3 (cloud) + Strapi 5 (cloud) flow over HTTPS
+- README: table clarifying what runs where (Mac vs DO server vs SSH)
+- README: complete production migration commands with Phase 4c SSH instructions
+- Phase 4 section: production note about SSH requirement for timestamp fix
+
 ## [3.1.0] - 2026-03-15
 
 ### Added

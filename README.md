@@ -7,7 +7,7 @@ A complete, automated migration tool for converting a legacy Strapi 3 (MongoDB) 
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 3.1.0 ([Changelog](CHANGELOG.md))
+**Version:** 3.2.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -155,25 +155,78 @@ Your local Strapi 5 is a verified copy of production Strapi 3 data. Browse the a
 
 ### When ready for production
 
-The production instance runs at `https://v2.researchhub.icjia-api.cloud` on a DigitalOcean droplet with PM2 + Nginx.
+> **You run everything from your Mac.** The migration scripts on your Mac talk to both cloud servers over HTTPS. The DO server just needs Strapi 5 running — you don't run migration scripts on the server.
+
+```
+Your Mac                    Cloud
+┌──────────────────┐        ┌──────────────────────────────────┐
+│  Migration        │ ─GQL─▶│  Strapi 3 (researchhub.icjia-   │
+│  Scripts          │        │  api.cloud) — read-only          │
+│                   │        └──────────────────────────────────┘
+│  pnpm migrate:*   │
+│                   │        ┌──────────────────────────────────┐
+│                   │ ─REST─▶│  Strapi 5 (v2.researchhub.icjia-│
+│                   │        │  api.cloud) — write via API      │
+└──────────────────┘        └──────────────────────────────────┘
+```
+
+| Where | What runs | Why |
+|---|---|---|
+| **Your Mac** | All migration scripts (Phases 1–6) | Orchestrates the entire migration over HTTPS |
+| **DO server** | Strapi 5 via PM2 | Just serves the API — receives content from your Mac |
+| **DO server (SSH)** | Only Phase 4c timestamp fix | Needs direct SQLite file access (one-time, 30 seconds) |
+
+**Setup the DO server** (one time):
+
+1. Install Strapi 5, PM2, Nginx on the droplet — see **[DigitalOcean Deployment Guide](docs/DIGITALOCEAN-DEPLOY.md)**
+2. Deploy configs are in [`deploy/`](deploy/):
+   - [`nginx-strapi5.conf`](deploy/nginx-strapi5.conf) — Nginx reverse proxy (port 1337 → HTTPS, 200MB upload limit)
+   - [`ecosystem.config.cjs`](deploy/ecosystem.config.cjs) — PM2 process manager config
+
+**Run the production migration** (from your Mac):
 
 ```bash
-# Point migration at production
+# Point at production
 cp config.prod.js config.js
 pnpm set-strapi5
 # URL: https://v2.researchhub.icjia-api.cloud
 # Token: (your production API token)
 
-# Clean local test data and run against production
+# Clean local test data
 pnpm migrate:clean
-pnpm migrate:phase01 through pnpm migrate:phase06
+
+# Run all phases from your Mac — they talk to the DO server over HTTPS
+pnpm migrate:phase01    # verify schemas on remote S5
+pnpm migrate:phase02    # extract from remote S3
+pnpm migrate:phase03    # upload media TO remote S5
+pnpm migrate:phase04    # load content TO remote S5 (pauses at 4c — see below)
+pnpm migrate:phase05    # validate both remote servers
+pnpm migrate:phase06    # parity audit across both remote servers
 ```
 
-For full server setup instructions (Nginx, PM2, SSL, timestamp fix on remote DB), see the **[DigitalOcean Deployment Guide](docs/DIGITALOCEAN-DEPLOY.md)**.
+**Phase 4c (timestamp fix) — the one SSH step:**
 
-Deploy configs are in the [`deploy/`](deploy/) directory:
-- [`nginx-strapi5.conf`](deploy/nginx-strapi5.conf) — Nginx reverse proxy (port 1337 → HTTPS, 200MB upload limit)
-- [`ecosystem.config.cjs`](deploy/ecosystem.config.cjs) — PM2 process manager config
+```bash
+# SSH into the DO server
+ssh forge@your-droplet-ip
+pm2 stop strapi5-researchhub
+
+# Clone migration repo on server (if not already there)
+cd /home/forge && git clone https://github.com/ICJIA/hub-cms-migration-2026.git
+cd hub-cms-migration-2026 && npm install
+
+# Run just the timestamp script
+export STRAPI5_DB_PATH="/home/forge/v2.researchhub.icjia-api.cloud/.tmp/data.db"
+node migration/scripts/04c-fix-timestamps.js
+
+# Restart and exit
+pm2 start strapi5-researchhub
+exit
+
+# Back on your Mac — continue with phases 5 and 6
+pnpm migrate:phase05
+pnpm migrate:phase06
+```
 
 ---
 
@@ -301,14 +354,16 @@ Phase 3e: Datasets 35 | Articles 246 updated | Apps 14 | Media map: 1331 entries
 
 Loads content in dependency order (datasets → apps → articles), links the relation triangle, restores original timestamps via SQLite, auto-configures admin display settings.
 
+> **Production note:** Steps 4a–4b and 4d run from your Mac over HTTPS. Step 4c (timestamp fix) requires direct SQLite access — for production, SSH into the DO server to run it. See the [production deployment section](#when-ready-for-production) above.
+
 ```bash
 pnpm migrate:phase04
 
 # Or individually:
-node migration/scripts/04-load.js                # load content
-node migration/scripts/04b-link-relations.js      # link relation triangle
-node migration/scripts/04c-fix-timestamps.js      # restore timestamps (stop Strapi 5 first!)
-node migration/scripts/04-verify.js               # verify everything
+node migration/scripts/04-load.js                # load content (runs from your Mac)
+node migration/scripts/04b-link-relations.js      # link relation triangle (runs from your Mac)
+node migration/scripts/04c-fix-timestamps.js      # restore timestamps (local: stop S5 first; production: SSH)
+node migration/scripts/04-verify.js               # verify everything (runs from your Mac)
 ```
 
 <details>
