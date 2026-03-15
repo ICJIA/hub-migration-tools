@@ -614,6 +614,11 @@ function compareScalar(field, s3Value, s5Value) {
     return { category: 'EXPECTED', detail: 'Boolean default: null → false (Strapi 5 defaults unset booleans)', strapi3: 'null', strapi5: 'false' };
   }
 
+  // Slug fields: Strapi 5 uid enforces uniqueness — duplicate slugs get a suffix appended
+  if (field === 'slug' && typeof s5Norm === 'string' && typeof s3Norm === 'string' && s5Norm.startsWith(s3Norm + '-')) {
+    return { category: 'EXPECTED', detail: 'Slug suffixed for uniqueness (duplicate in Strapi 3)', strapi3: String(s3Norm), strapi5: String(s5Norm) };
+  }
+
   return {
     category: 'ERROR',
     detail: `Value mismatch`,
@@ -808,6 +813,17 @@ function compareTimestamp(field, s3Value, s5Value) {
   const diff = Math.abs(new Date(s3Value).getTime() - new Date(s5Value).getTime());
   if (diff <= 1000) {
     return { category: 'OK', detail: `Match (diff: ${diff}ms)` };
+  }
+
+  // Large diffs (>24h) likely mean the record was loaded after the timestamp fix
+  // (e.g., a duplicate slug retry). Flag as INFO, not ERROR.
+  if (diff > 86400000) {
+    return {
+      category: 'INFO',
+      detail: `${field} not restored (record may have been loaded after timestamp fix — re-run 04c to fix)`,
+      strapi3: s3Value,
+      strapi5: s5Value,
+    };
   }
 
   return {

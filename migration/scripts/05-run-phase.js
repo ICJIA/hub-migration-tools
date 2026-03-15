@@ -91,11 +91,18 @@ function printSignOffChecklist() {
   console.log(`  [ ] Strapi 5 production environment configured (API tokens, CORS, uploads)`);
   console.log(`  [ ] Rollback plan documented`);
   console.log('');
-  console.log(`${GREEN}${BOLD}Next steps:${RESET}`);
+  console.log(`${GREEN}${BOLD}Next: Run Phase 6 (Parity Audit)${RESET}`);
+  console.log(`  ${CYAN}pnpm migrate:phase06${RESET}`);
+  console.log('');
+  console.log(`  Phase 6 does a field-by-field comparison of every record in Strapi 3`);
+  console.log(`  vs Strapi 5 and produces a detailed audit report for stakeholder sign-off.`);
+  console.log('');
+  console.log(`${BOLD}After Phase 6:${RESET}`);
   console.log(`  1. Complete the manual QA checklist above`);
-  console.log(`  2. Back up the Strapi 5 database`);
-  console.log(`  3. Update the frontend to point to Strapi 5`);
-  console.log(`  4. Monitor for 2 weeks, then consider removing legacyId fields`);
+  console.log(`  2. Share the audit report (migration/data/audit-report.md) with stakeholders`);
+  console.log(`  3. Back up the Strapi 5 database`);
+  console.log(`  4. Update the frontend to point to Strapi 5`);
+  console.log(`  5. Monitor for 2 weeks, then consider removing legacyId fields`);
   console.log('');
 }
 
