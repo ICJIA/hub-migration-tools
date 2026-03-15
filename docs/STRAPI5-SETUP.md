@@ -26,6 +26,15 @@ cd strapi5-researchhub
 pnpm install
 ```
 
+**Important:** pnpm blocks native build scripts by default. You need to approve `better-sqlite3` (Strapi's SQLite driver):
+
+```bash
+pnpm approve-builds better-sqlite3
+pnpm rebuild better-sqlite3
+```
+
+If you skip this, you'll get `Could not locate the bindings file` errors when starting Strapi.
+
 ## 2. Install the GraphQL Plugin
 
 Required for Phase 1c schema verification:
