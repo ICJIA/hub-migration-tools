@@ -257,7 +257,7 @@ async function main() {
   } else {
     console.log(`${RED}${failed} check(s) failed, ${passed} passed${RESET}`);
     console.log(`\nReview failures above. Re-run extraction if needed:`);
-    console.log(`  node migration/scripts/02-extract.js`);
+    console.log(`  pnpm migrate:phase02 (or node migration/scripts/02-extract.js)`);
   }
 
   process.exit(failed === 0 ? 0 : 1);

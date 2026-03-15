@@ -21,7 +21,7 @@
  * - `config.js` / `config.example.js` — configuration files
  *
  * @example
- *   node migration/scripts/00-clean.js
+ *   pnpm migrate:clean
  */
 
 import fs from 'fs/promises';
@@ -95,7 +95,7 @@ async function main() {
     console.log('Nothing to clean — migration directory is already empty.');
   }
   console.log(`\n${GREEN}Ready for a fresh migration run.${RESET}`);
-  console.log('Start with: node migration/scripts/01a-introspect.js');
+  console.log('Start with: pnpm migrate:phase01');
 }
 
 main().catch(err => {

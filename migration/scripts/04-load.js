@@ -337,7 +337,7 @@ async function main() {
   }
 
   console.log(`\n${GREEN}Phase 4a-4c (data loading) complete.${RESET}`);
-  console.log('Next: link relations with `node migration/scripts/04b-link-relations.js`');
+  console.log('Next: pnpm migrate:phase04 (or node migration/scripts/04b-link-relations.js)');
 }
 
 main().catch((err) => {

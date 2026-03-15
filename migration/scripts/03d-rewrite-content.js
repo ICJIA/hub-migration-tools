@@ -101,7 +101,7 @@ async function main() {
     console.log(`Loaded media map: ${Object.keys(mediaMap).length} entries`);
   } catch (err) {
     console.error(`${RED}ERROR: Cannot read media.json: ${err.message}${RESET}`);
-    console.error(`${RED}Run Phase 3c first: node migration/scripts/03c-upload-media.js${RESET}`);
+    console.error(`${RED}Run Phase 3 first: pnpm migrate:phase03${RESET}`);
     process.exit(1);
   }
 

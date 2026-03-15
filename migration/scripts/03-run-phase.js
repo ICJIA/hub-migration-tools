@@ -9,8 +9,8 @@
  * Interactive prompts between steps allow the user to pause and inspect output.
  *
  * @example
- *   node migration/scripts/03-run-phase.js
- *   # or: pnpm migrate:phase03
+ *   pnpm migrate:phase03
+ *   # or: node migration/scripts/03-run-phase.js
  *
  * Prerequisites:
  * - Phase 2 complete (raw data exists)
@@ -189,7 +189,7 @@ async function main() {
   console.log(`  ${GREEN}\u2713${RESET} Transformed apps     -> migration/data/transformed/apps.json`);
   console.log('');
   console.log('Next: Phase 4 (Content Loading)');
-  console.log(`  ${CYAN}node migration/scripts/04-run-phase.js${RESET}  (when implemented)`);
+  console.log(`  ${CYAN}pnpm migrate:phase04${RESET}  (when implemented)`);
   console.log('');
 }
 

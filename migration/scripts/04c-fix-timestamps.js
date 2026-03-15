@@ -319,7 +319,7 @@ async function main() {
 
   console.log(`\n${GREEN}Phase 4e (timestamp restoration + admin config) complete.${RESET}`);
   console.log(`${YELLOW}Remember to restart Strapi 5 before running verification.${RESET}`);
-  console.log('Next: verify with `node migration/scripts/04-verify.js`');
+  console.log('Next: pnpm migrate:phase04 (or node migration/scripts/04-verify.js)');
 }
 
 main().catch((err) => {

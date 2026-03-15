@@ -6,8 +6,8 @@
  * If a step fails, explains exactly what went wrong and how to resume.
  *
  * @example
- *   node migration/scripts/02-run-phase.js
- *   # or: pnpm migrate:phase02
+ *   pnpm migrate:phase02
+ *   # or: node migration/scripts/02-run-phase.js
  *
  * Prerequisites:
  * - Strapi 3 running and accessible
@@ -139,7 +139,7 @@ async function main() {
   console.log(`  ${GREEN}✓${RESET} Manifest         → migration/data/raw/manifest.json`);
   console.log('');
   console.log('Next: Phase 3 (Base64 Extraction & Media Migration)');
-  console.log(`  ${CYAN}node migration/scripts/03-run-phase.js${RESET}  (when implemented)`);
+  console.log(`  ${CYAN}pnpm migrate:phase03${RESET}  (when implemented)`);
   console.log('');
 }
 

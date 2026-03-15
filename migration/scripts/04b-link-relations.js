@@ -298,7 +298,7 @@ async function main() {
   }
 
   console.log(`\n${GREEN}Phase 4d (relation linking) complete.${RESET}`);
-  console.log('Next: fix timestamps with `node migration/scripts/04c-fix-timestamps.js`');
+  console.log('Next: pnpm migrate:phase04 (or node migration/scripts/04c-fix-timestamps.js)');
 }
 
 main().catch((err) => {

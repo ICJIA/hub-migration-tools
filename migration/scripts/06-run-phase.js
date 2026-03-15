@@ -20,8 +20,8 @@
  * On failure: prints which records had ERRORs and how to investigate
  *
  * @example
- *   node migration/scripts/06-run-phase.js
- *   # or: pnpm migrate:phase06
+ *   pnpm migrate:phase06
+ *   # or: node migration/scripts/06-run-phase.js
  *
  * Prerequisites:
  * - Phase 4 complete (all content loaded, relations linked, timestamps restored)
@@ -170,7 +170,7 @@ function printFailure(exitCode) {
   console.log(`     ${DIM}Missing S5 record:${RESET}         Load failed for a record (re-run 04-load.js)`);
   console.log('');
   console.log(`  4. ${BOLD}After fixing, re-run the audit:${RESET}`);
-  console.log(`     ${CYAN}node migration/scripts/06-audit.js${RESET}`);
+  console.log(`     ${CYAN}pnpm audit${RESET}`);
   console.log('');
   console.log(`  ${YELLOW}The idempotent design (legacyId checks, media duplicate detection)${RESET}`);
   console.log(`  ${YELLOW}makes partial re-runs safe. You do not need to start from scratch.${RESET}`);

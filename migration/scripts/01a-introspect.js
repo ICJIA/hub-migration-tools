@@ -278,7 +278,7 @@ async function main() {
     const media = attrs.filter(([, d]) => d.plugin === 'upload').length;
     console.log(`  ${ctName}: ${scalars} scalar, ${relations} relation, ${media} media`);
   }
-  console.log('\nPhase 1a complete. Run `node migration/scripts/01b-generate-schemas.js` next.');
+  console.log('\nPhase 1a complete. Next: pnpm migrate:phase01 (or node migration/scripts/01b-generate-schemas.js)');
 }
 
 main().catch(err => {

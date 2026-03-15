@@ -17,7 +17,7 @@
  * - 1 if any check fails
  *
  * @example
- *   node migration/scripts/05-validate.js
+ *   pnpm validate
  *
  * Prerequisites:
  * - Phase 4 complete (all content loaded, relations linked, timestamps restored)

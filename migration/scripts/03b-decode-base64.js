@@ -108,7 +108,7 @@ async function main() {
     console.log(`Loaded manifest: ${manifest.images.length} images to decode`);
   } catch (err) {
     console.error(`${RED}ERROR: Cannot read manifest.json: ${err.message}${RESET}`);
-    console.error(`${RED}Run Phase 3a first: node migration/scripts/03a-scan-base64.js${RESET}`);
+    console.error(`${RED}Run Phase 3 first: pnpm migrate:phase03${RESET}`);
     process.exit(1);
   }
 

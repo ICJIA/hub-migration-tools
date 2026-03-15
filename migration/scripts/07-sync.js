@@ -20,8 +20,8 @@
  * - Re-run timestamp fixes (new records get correct timestamps from the API)
  *
  * @example
- *   node migration/scripts/07-sync.js
- *   # or: pnpm sync
+ *   pnpm sync
+ *   # or: node migration/scripts/07-sync.js
  *
  * Prerequisites:
  * - Strapi 3 running and accessible

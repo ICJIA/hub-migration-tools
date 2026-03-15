@@ -7,8 +7,8 @@
  * If a step fails, explains exactly what went wrong and how to resume.
  *
  * @example
- *   node migration/scripts/01-run-phase.js
- *   # or: pnpm migrate:phase01
+ *   pnpm migrate:phase01
+ *   # or: node migration/scripts/01-run-phase.js
  */
 
 import { spawn } from 'child_process';

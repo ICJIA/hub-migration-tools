@@ -26,7 +26,7 @@
  * - 1 if any ERRORs found
  *
  * @example
- *   node migration/scripts/06-audit.js
+ *   pnpm audit
  *
  * Prerequisites:
  * - Phase 4 complete (all content loaded)

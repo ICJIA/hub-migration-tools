@@ -100,7 +100,7 @@ async function main() {
     console.log(`Loaded ${articles.length} articles from articles.json`);
   } catch (err) {
     console.error(`${RED}ERROR: Cannot read articles.json: ${err.message}${RESET}`);
-    console.error(`${RED}Run Phase 2 first: node migration/scripts/02-extract.js${RESET}`);
+    console.error(`${RED}Run Phase 2 first: pnpm migrate:phase02${RESET}`);
     process.exit(1);
   }
 
@@ -109,7 +109,7 @@ async function main() {
     console.log(`Loaded ${apps.length} apps from apps.json`);
   } catch (err) {
     console.error(`${RED}ERROR: Cannot read apps.json: ${err.message}${RESET}`);
-    console.error(`${RED}Run Phase 2 first: node migration/scripts/02-extract.js${RESET}`);
+    console.error(`${RED}Run Phase 2 first: pnpm migrate:phase02${RESET}`);
     process.exit(1);
   }
 

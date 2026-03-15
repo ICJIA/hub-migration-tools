@@ -347,7 +347,7 @@ async function main() {
     console.log(`Loaded ${transformedArticles.length} transformed articles (from 03d)`);
   } catch (err) {
     console.error(`${RED}ERROR: Cannot read transformed articles.json: ${err.message}${RESET}`);
-    console.error(`${RED}Run Phase 3d first: node migration/scripts/03d-rewrite-content.js${RESET}`);
+    console.error(`${RED}Run Phase 3 first: pnpm migrate:phase03${RESET}`);
     process.exit(1);
   }
 

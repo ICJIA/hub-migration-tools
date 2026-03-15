@@ -362,7 +362,7 @@ async function main() {
   }
 
   console.log(`\n${GREEN}Phase 2 extraction complete.${RESET}`);
-  console.log('Next: run verification with `node migration/scripts/02-verify.js`');
+  console.log('Next: pnpm migrate:phase02 (or node migration/scripts/02-verify.js)');
 }
 
 main().catch(err => {

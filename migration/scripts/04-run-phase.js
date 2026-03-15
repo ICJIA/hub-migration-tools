@@ -11,8 +11,8 @@
  * Each step has graceful failure handling with recovery instructions.
  *
  * @example
- *   node migration/scripts/04-run-phase.js
- *   # or: pnpm migrate:phase04
+ *   pnpm migrate:phase04
+ *   # or: node migration/scripts/04-run-phase.js
  *
  * Prerequisites:
  * - Phase 3 complete (transformed data exists)
@@ -237,7 +237,7 @@ async function main() {
   console.log(`  ${GREEN}✓${RESET} All verification checks passed`);
   console.log('');
   console.log('Next: Phase 5 (Final Validation)');
-  console.log(`  ${CYAN}node migration/scripts/05-run-phase.js${RESET}  (when implemented)`);
+  console.log(`  ${CYAN}pnpm migrate:phase05${RESET}  (when implemented)`);
   console.log('');
 }
 

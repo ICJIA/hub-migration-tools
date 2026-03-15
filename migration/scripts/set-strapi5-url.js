@@ -7,8 +7,8 @@
  * and optionally the API token, then updates config.js automatically.
  *
  * @example
- *   node migration/scripts/set-strapi5-url.js
- *   # or: pnpm set-strapi5
+ *   pnpm set-strapi5
+ *   # or: node migration/scripts/set-strapi5-url.js
  */
 
 import fs from 'fs/promises';

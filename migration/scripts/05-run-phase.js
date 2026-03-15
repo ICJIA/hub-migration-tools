@@ -7,8 +7,8 @@
  * On failure, prints which checks failed and how to investigate.
  *
  * @example
- *   node migration/scripts/05-run-phase.js
- *   # or: pnpm migrate:phase05
+ *   pnpm migrate:phase05
+ *   # or: node migration/scripts/05-run-phase.js
  *
  * Prerequisites:
  * - Phase 4 complete (all content loaded, relations linked, timestamps restored)
@@ -125,7 +125,7 @@ function printFailureGuidance(exitCode) {
   console.log(`     ${DIM}Duplicates:${RESET}                  Check for duplicate legacyId in load script`);
   console.log('');
   console.log(`  3. ${BOLD}After fixing, re-run validation:${RESET}`);
-  console.log(`     ${CYAN}node migration/scripts/05-validate.js${RESET}`);
+  console.log(`     ${CYAN}pnpm validate${RESET}`);
   console.log('');
   console.log(`  ${YELLOW}The idempotent design (legacyId checks, media duplicate detection)${RESET}`);
   console.log(`  ${YELLOW}makes partial re-runs safe. You do not need to start from scratch.${RESET}`);
