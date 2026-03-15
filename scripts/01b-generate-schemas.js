@@ -1,11 +1,27 @@
 /**
- * Phase 1b: Generate Strapi 5 Schemas
+ * @module 01b-generate-schemas
+ * @description Phase 1b: Generate Strapi 5 Schemas
  *
- * 1. Read Strapi 3 model data (output of 01a)
- * 2. Read field type mapping config
- * 3. Generate Strapi 5 schema.json + boilerplate files
- * 4. Write to output/strapi5-schemas/
- * 5. Write field map to config/field-map.json
+ * Reads Strapi 3 model data (produced by 01a) and the field type mapping config,
+ * then generates complete Strapi 5 schema.json files and boilerplate for all
+ * three content types (article, dataset, app).
+ *
+ * Steps:
+ * 1. Read `data/introspection/strapi3-models.json` (output of 01a)
+ * 2. Read `config/field-type-map.json` (static mapping rules)
+ * 3. Call `generateStrapi5Schemas()` from lib/schema-generator.js
+ * 4. Write schema.json + route/controller/service to `output/strapi5-schemas/`
+ * 5. Write field mapping details to `config/field-map.json`
+ *
+ * After running, copy the output to a Strapi 5 project:
+ *   cp -r output/strapi5-schemas/* /path/to/strapi5-project/src/api/
+ *
+ * @example
+ *   node scripts/01b-generate-schemas.js
+ *
+ * Prerequisites:
+ * - Phase 1a complete (`data/introspection/strapi3-models.json` exists)
+ * - `config/field-type-map.json` exists
  */
 
 import fs from 'fs/promises';
@@ -15,6 +31,10 @@ import { generateStrapi5Schemas } from '../lib/schema-generator.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
+
+/** ANSI color codes for terminal output */
+const RED = '\x1b[31m';
+const RESET = '\x1b[0m';
 
 // Load config
 let config;
@@ -36,15 +56,15 @@ async function main() {
   try {
     models = JSON.parse(await fs.readFile(modelsPath, 'utf8'));
   } catch (err) {
-    console.error(`ERROR: Cannot read ${modelsPath}`);
-    console.error('Run `node scripts/01a-introspect.js` first.');
+    console.error(`${RED}ERROR: Cannot read ${modelsPath}${RESET}`);
+    console.error(`${RED}Run 'node scripts/01a-introspect.js' first.${RESET}`);
     process.exit(1);
   }
 
   try {
     fieldTypeMap = JSON.parse(await fs.readFile(fieldTypeMapPath, 'utf8'));
   } catch (err) {
-    console.error(`ERROR: Cannot read ${fieldTypeMapPath}`);
+    console.error(`${RED}ERROR: Cannot read ${fieldTypeMapPath}${RESET}`);
     process.exit(1);
   }
 
@@ -123,6 +143,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('\nFATAL:', err.message);
+  console.error(`\n${RED}FATAL: ${err.message}${RESET}`);
   process.exit(1);
 });

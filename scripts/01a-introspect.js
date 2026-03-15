@@ -1,9 +1,22 @@
 /**
- * Phase 1a: Introspect Strapi 3
+ * @module 01a-introspect
+ * @description Phase 1a: Introspect Strapi 3
  *
- * 1. Run GraphQL introspection query against Strapi 3
- * 2. Read Strapi 3 model files from schemas/ directory
- * 3. Save both to data/introspection/
+ * Collects schema information from two sources:
+ * 1. GraphQL introspection query against a running Strapi 3 instance (optional —
+ *    gracefully degrades if Strapi 3 is not running)
+ * 2. Strapi 3 model files from the local `schemas/` directory (primary source)
+ *
+ * Outputs:
+ * - `data/introspection/strapi3.json` — GraphQL introspection result (filtered to content types)
+ * - `data/introspection/strapi3-models.json` — Parsed model file data (authoritative)
+ *
+ * @example
+ *   node scripts/01a-introspect.js
+ *
+ * Prerequisites:
+ * - Strapi 3 model files in `schemas/` directory (article.settings.json, etc.)
+ * - Optionally, Strapi 3 running at the configured GraphQL URL for cross-validation
  */
 
 import fs from 'fs/promises';
@@ -12,6 +25,12 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
+
+/** ANSI color codes for terminal output */
+const RED = '\x1b[31m';
+const GREEN = '\x1b[32m';
+const YELLOW = '\x1b[33m';
+const RESET = '\x1b[0m';
 
 // Load config — fall back to example if config.js doesn't exist
 let config;
@@ -49,6 +68,13 @@ const INTROSPECTION_QUERY = `{
 // Content type names as they appear in GraphQL (capitalized)
 const GQL_TYPE_NAMES = new Set(['Article', 'Dataset', 'App']);
 
+/**
+ * Run a GraphQL introspection query against Strapi 3.
+ * Returns filtered content type data, or null if Strapi 3 is unreachable.
+ *
+ * @returns {Promise<{types: Object[], allRelatedTypes: Object[]}|null>}
+ *   Filtered introspection data, or null if connection failed
+ */
 async function introspectGraphQL() {
   const url = config.strapi3.graphqlUrl;
   console.log(`\nIntrospecting Strapi 3 GraphQL at ${url}...`);
@@ -63,7 +89,7 @@ async function introspectGraphQL() {
       method: 'POST',
       headers,
       body: JSON.stringify({ query: INTROSPECTION_QUERY }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(config.settings?.requestTimeoutMs || 30000),
     });
 
     if (!response.ok) {
@@ -89,15 +115,21 @@ async function introspectGraphQL() {
 
     return { types: contentTypes, allRelatedTypes: systemTypes };
   } catch (err) {
-    if (err.cause?.code === 'ECONNREFUSED' || err.message.includes('ECONNREFUSED')) {
-      console.warn(`  WARNING: Could not connect to Strapi 3 at ${url}`);
-      console.warn('  GraphQL introspection skipped. Model files will be used as the sole source.');
+    if (err.cause?.code === 'ECONNREFUSED' || err.message.includes('ECONNREFUSED') || err.message.includes('fetch failed')) {
+      console.warn(`  ${YELLOW}WARNING: Could not connect to Strapi 3 at ${url}${RESET}`);
+      console.warn(`  ${YELLOW}GraphQL introspection skipped. Model files will be used as the sole source.${RESET}`);
       return null;
     }
     throw err;
   }
 }
 
+/**
+ * Read Strapi 3 model definition files from the local `schemas/` directory,
+ * falling back to the Strapi 3 project path if local files aren't found.
+ *
+ * @returns {Promise<Object>} Parsed models keyed by content type name
+ */
 async function readModelFiles() {
   console.log('\nReading Strapi 3 model files...');
 
@@ -117,9 +149,9 @@ async function readModelFiles() {
         await fs.access(projectPath);
         filePath = projectPath;
       } catch {
-        console.error(`  ERROR: Model file not found for "${ctName}" at:`);
-        console.error(`    ${localPath}`);
-        console.error(`    ${projectPath}`);
+        console.error(`  ${RED}ERROR: Model file not found for "${ctName}" at:${RESET}`);
+        console.error(`  ${RED}  ${localPath}${RESET}`);
+        console.error(`  ${RED}  ${projectPath}${RESET}`);
         process.exit(1);
       }
     }
@@ -136,6 +168,14 @@ async function readModelFiles() {
 
 async function main() {
   console.log('=== Phase 1a: Introspect Strapi 3 ===');
+
+  // Show current config so user can verify
+  console.log('\nConfiguration:');
+  console.log(`  Strapi 3 GraphQL: ${config.strapi3.graphqlUrl}`);
+  console.log(`  Strapi 3 API:     ${config.strapi3.apiUrl}`);
+  console.log(`  Strapi 3 token:   ${config.strapi3.token ? '(set)' : '(not set)'}`);
+  console.log(`  Schemas dir:      ${config.paths.schemas}`);
+  console.log(`  Content types:    ${config.contentTypes.join(', ')}`);
 
   // Run both data collection tasks
   const [gqlResult, models] = await Promise.all([
@@ -176,6 +216,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('\nFATAL:', err.message);
+  console.error(`\n${RED}FATAL: ${err.message}${RESET}`);
   process.exit(1);
 });

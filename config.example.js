@@ -1,21 +1,97 @@
+/**
+ * @module config
+ * @description Single source of truth for all migration configuration.
+ *
+ * Copy this file to `config.js` and adjust values as needed:
+ *   cp config.example.js config.js
+ *
+ * `config.js` is gitignored (it may contain API tokens).
+ * All values have sensible defaults and can be overridden via environment variables.
+ *
+ * If `config.js` does not exist, scripts fall back to `config.example.js` defaults.
+ */
+
 export default {
+  /**
+   * Strapi 3 (source) instance configuration.
+   * Default points to the production ResearchHub API.
+   */
   strapi3: {
-    graphqlUrl: process.env.STRAPI3_GRAPHQL_URL || 'http://localhost:1337/graphql',
-    apiUrl: process.env.STRAPI3_API_URL || 'http://localhost:1337',
+    /** @type {string} GraphQL endpoint for introspection and data extraction */
+    graphqlUrl: process.env.STRAPI3_GRAPHQL_URL || 'https://researchhub.icjia-api.cloud/graphql',
+    /** @type {string} REST API base URL for count endpoints and file downloads */
+    apiUrl: process.env.STRAPI3_API_URL || 'https://researchhub.icjia-api.cloud',
+    /** @type {string} API token for authenticated requests (leave empty if not required) */
     token: process.env.STRAPI3_TOKEN || '',
   },
+
+  /**
+   * Strapi 5 (target) instance configuration.
+   * Default points to a local development instance.
+   */
   strapi5: {
+    /** @type {string} GraphQL endpoint for schema verification */
     graphqlUrl: process.env.STRAPI5_GRAPHQL_URL || 'http://localhost:1338/graphql',
+    /** @type {string} REST API base URL for content creation and media upload */
     apiUrl: process.env.STRAPI5_API_URL || 'http://localhost:1338',
+    /** @type {string} Full-access API token for write operations */
     token: process.env.STRAPI5_TOKEN || '',
+    /** @type {string} Path to Strapi 5 SQLite database (for timestamp restoration) */
+    dbPath: process.env.STRAPI5_DB_PATH || '../strapi5-project/.tmp/data.db',
   },
+
+  /**
+   * Path to the Strapi 3 project source code (fallback for model files).
+   * Primary source is the `schemas/` directory in this repo.
+   * @type {string}
+   */
   strapi3ProjectPath: process.env.STRAPI3_PROJECT_PATH || '../strapi3-project',
+
+  /**
+   * Content type names to process. These must match the Strapi 3 model names
+   * and have corresponding files in `schemas/`.
+   * @type {string[]}
+   */
   contentTypes: ['article', 'dataset', 'app'],
+
+  /**
+   * File and directory paths used by all scripts.
+   * All paths are relative to the project root.
+   */
   paths: {
+    /** @type {string} Local copies of Strapi 3 model schemas */
     schemas: './schemas',
+    /** @type {string} GraphQL introspection output and schema diffs */
     introspection: './data/introspection',
+    /** @type {string} Generated Strapi 5 schema files and boilerplate */
     output: './output/strapi5-schemas',
+    /** @type {string} Field type mapping rules (static config) */
     fieldTypeMap: './config/field-type-map.json',
+    /** @type {string} Generated field mapping details (output of Phase 1b) */
     fieldMap: './config/field-map.json',
+    /** @type {string} Raw extracted data from Strapi 3 (Phase 2 output) */
+    rawData: './data/raw',
+    /** @type {string} Transformed data ready for Strapi 5 loading (Phase 3 output) */
+    transformedData: './data/transformed',
+    /** @type {string} Decoded media files and manifest (Phase 3 working directory) */
+    media: './data/media',
+    /** @type {string} ID and media translation maps (used across phases) */
+    maps: './data/maps',
+  },
+
+  /**
+   * Script behavior settings.
+   */
+  settings: {
+    /** @type {number} Pagination limit for GraphQL queries */
+    paginationLimit: 100,
+    /** @type {number} Delay in ms between API requests to avoid overwhelming Strapi */
+    requestDelayMs: 100,
+    /** @type {number} Timeout in ms for individual API requests */
+    requestTimeoutMs: 30000,
+    /** @type {number} Max attempts when polling for Strapi 5 readiness */
+    pollMaxAttempts: 30,
+    /** @type {number} Delay in ms between poll attempts */
+    pollDelayMs: 2000,
   },
 };

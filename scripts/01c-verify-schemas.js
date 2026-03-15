@@ -1,13 +1,29 @@
 /**
- * Phase 1c: Verify Strapi 5 Schemas
+ * @module 01c-verify-schemas
+ * @description Phase 1c: Verify Strapi 5 Schemas
  *
- * 1. Poll Strapi 5 until it's ready
- * 2. Run GraphQL introspection against Strapi 5
- * 3. Load Strapi 3 introspection data
- * 4. Diff the two, categorizing differences as expected or unexpected
- * 5. Verify REST API responds correctly
- * 6. Save diff to data/introspection/schema-diff.json
- * 7. Exit 0 if clean, exit 1 if unexpected differences found
+ * Validates that the generated Strapi 5 schemas were applied correctly by:
+ * 1. Polling Strapi 5 until it's ready (up to 60 seconds)
+ * 2. Running GraphQL introspection against Strapi 5
+ * 3. Loading Strapi 3 introspection data for comparison
+ * 4. Diffing the two schemas, categorizing differences as expected or unexpected
+ * 5. Verifying the REST API responds with correct structure
+ * 6. Verifying the `legacyId` field is accessible on all content types
+ * 7. Saving the full report to `data/introspection/schema-diff.json`
+ *
+ * Exits with code 0 if only expected differences are found, code 1 otherwise.
+ *
+ * Expected differences include: Base64 string → media type changes (splash,
+ * thumbnail, image), upload plugin → media changes (mainfile, extrafile, datafile),
+ * new system fields (documentId, locale, etc.), and the added legacyId field.
+ *
+ * @example
+ *   node scripts/01c-verify-schemas.js
+ *
+ * Prerequisites:
+ * - Strapi 5 running with generated schemas applied
+ * - `@strapi/plugin-graphql` installed in the Strapi 5 project
+ * - Phase 1a complete (`data/introspection/strapi3.json` exists)
  */
 
 import fs from 'fs/promises';
@@ -16,6 +32,12 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
+
+/** ANSI color codes for terminal output */
+const RED = '\x1b[31m';
+const GREEN = '\x1b[32m';
+const YELLOW = '\x1b[33m';
+const RESET = '\x1b[0m';
 
 let config;
 try {
@@ -62,7 +84,16 @@ const EXPECTED_TYPE_CHANGES = new Set([
   'Article.mainfile', 'Article.extrafile', 'Dataset.datafile',
 ]);
 
-async function pollStrapi5(maxAttempts = 30, delayMs = 2000) {
+/**
+ * Poll Strapi 5 until it responds, with configurable timeout.
+ *
+ * @param {number} [maxAttempts] - Max poll attempts (default from config or 30)
+ * @param {number} [delayMs] - Delay between attempts in ms (default from config or 2000)
+ * @returns {Promise<boolean>} True if Strapi 5 is ready, false if timed out
+ */
+async function pollStrapi5(maxAttempts, delayMs) {
+  maxAttempts = maxAttempts || config.settings?.pollMaxAttempts || 30;
+  delayMs = delayMs || config.settings?.pollDelayMs || 2000;
   const url = config.strapi5.apiUrl;
   console.log(`Waiting for Strapi 5 at ${url}...`);
 
@@ -86,9 +117,9 @@ async function pollStrapi5(maxAttempts = 30, delayMs = 2000) {
     }
   }
 
-  console.error(`\nERROR: Strapi 5 did not respond after ${maxAttempts} attempts.`);
-  console.error('Make sure Strapi 5 is running with the generated schemas.');
-  console.error('Also ensure @strapi/plugin-graphql is installed for introspection.');
+  console.error(`\n${RED}ERROR: Strapi 5 did not respond after ${maxAttempts} attempts.${RESET}`);
+  console.error(`${RED}Make sure Strapi 5 is running with the generated schemas.${RESET}`);
+  console.error(`${RED}Also ensure @strapi/plugin-graphql is installed for introspection.${RESET}`);
   return false;
 }
 
@@ -298,6 +329,13 @@ async function verifyLegacyIdField() {
 async function main() {
   console.log('=== Phase 1c: Verify Strapi 5 Schemas ===\n');
 
+  // Show current config so user can verify
+  console.log('Configuration:');
+  console.log(`  Strapi 5 GraphQL: ${config.strapi5.graphqlUrl}`);
+  console.log(`  Strapi 5 API:     ${config.strapi5.apiUrl}`);
+  console.log(`  Strapi 5 token:   ${config.strapi5.token ? '(set)' : '(not set)'}`);
+  console.log('');
+
   // Poll for readiness
   const ready = await pollStrapi5();
   if (!ready) process.exit(1);
@@ -307,9 +345,9 @@ async function main() {
   try {
     strapi5Data = await introspectStrapi5();
   } catch (err) {
-    console.error(`\nERROR: GraphQL introspection failed.`);
-    console.error('Is @strapi/plugin-graphql installed in the Strapi 5 project?');
-    console.error(`Detail: ${err.message}`);
+    console.error(`\n${RED}ERROR: GraphQL introspection failed.${RESET}`);
+    console.error(`${RED}Is @strapi/plugin-graphql installed in the Strapi 5 project?${RESET}`);
+    console.error(`${RED}Detail: ${err.message}${RESET}`);
     process.exit(1);
   }
 
@@ -378,12 +416,16 @@ async function main() {
   console.log(`Schema diff: ${diff.summary.pass ? 'PASS ✓' : 'FAIL ✗'} (${diff.summary.expectedCount} expected, ${diff.summary.unexpectedCount} unexpected)`);
 
   const overallPass = diff.summary.pass && restPass && legacyPass;
-  console.log(`\nOverall: ${overallPass ? 'PASS ✓ — Ready for Phase 2' : 'FAIL ✗ — Review issues above before proceeding'}`);
+  if (overallPass) {
+    console.log(`\n${GREEN}Overall: PASS ✓ — Ready for Phase 2${RESET}`);
+  } else {
+    console.log(`\n${RED}Overall: FAIL ✗ — Review issues above before proceeding${RESET}`);
+  }
 
   process.exit(overallPass ? 0 : 1);
 }
 
 main().catch(err => {
-  console.error('\nFATAL:', err.message);
+  console.error(`\n${RED}FATAL: ${err.message}${RESET}`);
   process.exit(1);
 });

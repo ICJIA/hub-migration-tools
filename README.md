@@ -72,6 +72,61 @@ The actual Strapi 3 model schemas are stored in [`schemas/`](schemas/) for refer
 - [`dataset.settings.json`](schemas/dataset.settings.json) — 14 scalar fields, 1 upload-plugin media field, 2 m2m relations
 - [`app.settings.json`](schemas/app.settings.json) — 12 scalar fields, 2 m2m relations (both dominant)
 
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ (see `.nvmrc` — project targets Node 22)
+- A fresh Strapi 5 project (`npx create-strapi@latest`) for Phase 1c onward
+- `@strapi/plugin-graphql` installed in the Strapi 5 project (for schema verification)
+
+### Configuration
+
+All scripts read from a single config file at the project root. Copy the example and customize:
+
+```bash
+cp config.example.js config.js
+```
+
+**Defaults** (work out of the box for most cases):
+- **Strapi 3:** `https://researchhub.icjia-api.cloud` (production ResearchHub API)
+- **Strapi 5:** `http://localhost:1338` (local development instance)
+- **API tokens:** Empty — set via `STRAPI3_TOKEN` / `STRAPI5_TOKEN` env vars or in `config.js`
+
+Every script prints its configuration at startup so you can verify target URLs before it runs. See [`config.example.js`](config.example.js) for all available settings.
+
+> **Security:** `config.js` is gitignored because it may contain API tokens. Never commit it.
+
+### Phase 1: Schema Setup
+
+Generates Strapi 5 content type schemas from the Strapi 3 model definitions. See [`scripts/README.md`](scripts/README.md) for detailed script documentation.
+
+```bash
+# Step 1: Read Strapi 3 schemas (works without Strapi 3 running — uses local files)
+node scripts/01a-introspect.js
+
+# Step 2: Generate Strapi 5 schema.json files + boilerplate
+node scripts/01b-generate-schemas.js
+
+# Step 3: Copy generated schemas to your Strapi 5 project
+cp -r output/strapi5-schemas/* /path/to/strapi5-project/src/api/
+
+# Step 4: Start Strapi 5 in dev mode (it reads schemas and creates tables)
+cd /path/to/strapi5-project && npm run develop
+
+# Step 5: Verify schemas were applied correctly (Strapi 5 must be running)
+node scripts/01c-verify-schemas.js
+```
+
+**What gets generated:**
+- 3 `schema.json` files with all fields, relations (triangle), and `legacyId`
+- Route, controller, and service boilerplate for each content type
+- Field mapping reference at `config/field-map.json`
+
+### Phase 2–5: Not Yet Implemented
+
+Scripts for subsequent phases will be added as they are implemented. Each phase has a design doc in `docs/` and will follow the same patterns (config at startup, colored output, idempotent operations).
+
 ## Success Criteria
 
 1. All records transferred (matching counts between source and target)
