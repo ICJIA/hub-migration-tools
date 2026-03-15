@@ -20,6 +20,16 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.8.0] - 2026-03-15
+
+### Added
+- README: table of contents with links to all major sections
+- OG image (1200x630, dark mode) with project stats, phase indicators, and tech badges
+  - SVG source: `docs/og-image.svg`
+  - PNG render: `docs/og-image.png`
+- Image displayed at top of README
+- All scripts now show `pnpm migrate:phaseXX` as primary command with individual node commands as alternatives
+
 ## [2.7.0] - 2026-03-15
 
 ### Added

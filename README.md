@@ -1,11 +1,42 @@
 # ResearchHub CMS Migration (Strapi 3 → Strapi 5)
 
+![ResearchHub CMS Migration](docs/og-image.png)
+
 A complete, automated migration tool for converting a legacy Strapi 3 (MongoDB) content management system to a current Strapi 5 (SQLite) instance. Performs a full API-to-API transfer — extracting all content, media, and relations from Strapi 3, transforming and loading them into Strapi 5, then running automated validation and field-by-field parity checks. The end result is a fully migrated, verified Strapi 5 database running on SQLite.
 
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 2.7.0 ([Changelog](CHANGELOG.md))
+**Version:** 2.8.0 ([Changelog](CHANGELOG.md))
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Quick Start: Complete Migration Walkthrough](#quick-start-complete-migration-walkthrough)
+- [Migration Checklist](#migration-checklist)
+- [Migration Approach](#migration-approach)
+- [Content Scope](#content-scope)
+- [Project Phases](#project-phases)
+- [Documentation](#documentation)
+- [Getting Started](#getting-started)
+  - [Platform Support](#platform-support)
+  - [Prerequisites](#prerequisites)
+  - [Configuration](#configuration)
+  - [Resetting Migration Data](#resetting-migration-data)
+  - [Starting Over Completely](#starting-over-completely-fresh-strapi-5)
+  - [Phase 1: Schema Setup](#phase-1-schema-setup)
+  - [Phase 2: Data Extraction](#phase-2-data-extraction)
+  - [Phase 3: Base64 Extraction & Media Migration](#phase-3-base64-extraction--media-migration)
+  - [Phase 4: Data Loading & Timestamp Restoration](#phase-4-data-loading--timestamp-restoration)
+  - [Phase 5: Validation & Reconciliation](#phase-5-validation--reconciliation)
+  - [Phase 6: Parity Audit](#phase-6-parity-audit)
+  - [Setting Up Strapi 5](#setting-up-strapi-5)
+  - [Incremental Sync](#incremental-sync-catching-up-after-initial-migration)
+- [Risks and Mitigations](#risks-and-mitigations)
+- [Success Criteria](#success-criteria)
+- [License](#license)
 
 ---
 
