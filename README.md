@@ -67,6 +67,61 @@ graph LR
 
 **Estimated effort:** 8–12 working days (single developer, sequential phases).
 
+### Phase pipeline
+
+```mermaid
+graph LR
+    P1[Phase 1<br/>Schema] --> P2[Phase 2<br/>Extract]
+    P2 --> P3[Phase 3<br/>Media]
+    P3 --> P4[Phase 4<br/>Load]
+    P4 --> P5[Phase 5<br/>Validate]
+    P5 --> P6[Phase 6<br/>Audit]
+
+    style P1 fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style P2 fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style P3 fill:#e8a838,stroke:#b07a1a,color:#fff
+    style P4 fill:#e8a838,stroke:#b07a1a,color:#fff
+    style P5 fill:#50b87a,stroke:#2d7a4d,color:#fff
+    style P6 fill:#50b87a,stroke:#2d7a4d,color:#fff
+```
+
+### Deployment architecture
+
+Local dev and production use the same scripts — only the Strapi 5 URL changes.
+
+```mermaid
+graph TB
+    subgraph "Your Mac"
+        M[Migration Scripts<br/>pnpm migrate:phase*]
+    end
+
+    subgraph "Local Dev"
+        S5L[Strapi 5<br/>localhost:1338]
+    end
+
+    subgraph "Cloud (DigitalOcean)"
+        S3[Strapi 3<br/>researchhub.icjia-api.cloud]
+        S5P[Strapi 5<br/>v2.researchhub.icjia-api.cloud]
+        NX[Nginx :443 → :1337]
+        PM[PM2]
+        PM --> S5P
+        NX --> S5P
+    end
+
+    M -- "GraphQL (read)" --> S3
+    M -- "REST (write)" --> S5L
+    M -. "REST (write)<br/>production mode" .-> NX
+
+    style M fill:#4a90d9,stroke:#2c5f8a,color:#fff
+    style S3 fill:#e8a838,stroke:#b07a1a,color:#fff
+    style S5L fill:#50b87a,stroke:#2d7a4d,color:#fff
+    style S5P fill:#50b87a,stroke:#2d7a4d,color:#fff
+    style NX fill:#21262d,stroke:#30363d,color:#8b949e
+    style PM fill:#21262d,stroke:#30363d,color:#8b949e
+```
+
+> **Dev mode:** Mac → Strapi 3 (cloud) + Strapi 5 (localhost). **Production mode:** Mac → Strapi 3 (cloud) + Strapi 5 (cloud). Same scripts, same commands — just a different URL in `config.js`.
+
 ---
 
 ## Quick Start
