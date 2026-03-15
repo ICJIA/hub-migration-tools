@@ -62,6 +62,13 @@ export default {
   strapi3ProjectPath: process.env.STRAPI3_PROJECT_PATH || '../strapi3-project',
 
   /**
+   * Path to the Strapi 5 project directory.
+   * Used by Phase 1 to auto-copy generated schemas into src/api/.
+   * @type {string}
+   */
+  strapi5ProjectPath: process.env.STRAPI5_PROJECT_PATH || '../strapi5-researchhub',
+
+  /**
    * Content type names to process. These must match the Strapi 3 model names
    * and have corresponding files in `schemas/`.
    * @type {string[]}
