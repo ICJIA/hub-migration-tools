@@ -118,7 +118,7 @@ The relation graph is a **triangle** — all three content types are interconnec
 
 ## 4. Phase Structure
 
-The migration is split into five phases, each with its own design document. Phases are sequential — each depends on the prior phase's output.
+The migration is split into six phases, each with its own design document. Phases are sequential — each depends on the prior phase's output.
 
 | Phase | Doc | Title | Description | Input | Output |
 |-------|-----|-------|-------------|-------|--------|
@@ -126,12 +126,13 @@ The migration is split into five phases, each with its own design document. Phas
 | 2 | Doc 02 | Data Extraction | Pull all content from Strapi 3 via GraphQL, store as local JSON | Running Strapi 3, field map | `data/raw/*.json` |
 | 3 | Doc 03 | Base64 Extraction & Media Migration | Decode all Base64 images (splash + inline), upload to Strapi 5 media library, rewrite markdown with media URLs | `data/raw/`, field map | `data/media/`, `data/maps/media.json`, `data/transformed/` |
 | 4 | Doc 04 | Data Loading & Timestamp Restoration | Insert transformed content into Strapi 5 via API in dependency order, link relations, then correct `createdAt`/`updatedAt` via direct SQLite update | `data/transformed/`, `data/maps/` | Populated Strapi 5 with original timestamps |
-| 5 | Doc 05 | Validation & Reconciliation | Count checks, spot checks, media verification, relation integrity, zero Base64 remaining | Both instances running | Validation report |
+| 5 | Doc 05 | Validation & Reconciliation | Automated pass/fail checks: counts, media, relations, timestamps, Base64 | Both instances running | Validation report |
+| 6 | Doc 06 | Parity Audit | Field-by-field comparison of every record; detailed audit report with ERROR/EXPECTED/INFO categories | Both instances running | JSON + Markdown audit reports |
 
 ### Dependency Graph
 
 ```
-Phase 1 (Schema) → Phase 2 (Extract) → Phase 3 (Base64 + Media) → Phase 4 (Load) → Phase 5 (Validate)
+Phase 1 (Schema) → Phase 2 (Extract) → Phase 3 (Base64 + Media) → Phase 4 (Load) → Phase 5 (Validate) → Phase 6 (Audit)
 ```
 
 ### Validation Strategy: Gate Checks at Every Phase
@@ -144,7 +145,8 @@ Each phase has a **gate** — a set of automated and manual checks that must pas
 | 2 | Built into `scripts/02-extract.js` + standalone `scripts/02-verify.js` | Record counts match Strapi 3 REST count endpoints, all records have IDs, timestamps present, JSON files parseable | Phase 3 |
 | 3 | `scripts/03-verify.js` (dedicated Phase 3 validation) | Zero Base64 remnants in transformed articles/apps, all manifest images decoded and uploaded, all splash/thumbnail/image fields are media IDs, all upload-plugin files (mainfile, extrafile, datafile) uploaded, media accessible in Strapi 5 | Phase 4 |
 | 4 | `scripts/04-verify.js` (dedicated Phase 4 validation) | Record counts match in Strapi 5, all relations linked correctly (triangle graph), timestamps restored to original values, no duplicate records, all media accessible (splash, thumbnail, image, mainfile, extrafile, datafile) | Phase 5 |
-| 5 | `scripts/05-validate.js` | End-to-end reconciliation across Strapi 3 and Strapi 5 — the final comprehensive check | Deployment |
+| 5 | `scripts/05-validate.js` | End-to-end reconciliation across Strapi 3 and Strapi 5 — automated pass/fail checks | Phase 6 |
+| 6 | `scripts/06-audit.js` | Field-by-field parity audit of every record; produces detailed JSON + Markdown reports with ERROR/EXPECTED/INFO categories | Deployment |
 
 **Rule:** If any gate check fails, stop. Diagnose and fix before proceeding. Re-running a later phase on bad upstream data wastes time and creates confusing error trails.
 

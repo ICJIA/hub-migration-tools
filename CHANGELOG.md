@@ -20,6 +20,23 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - README: Risks and Mitigations table with impact levels, mitigation strategies, and phase cross-references
 
+## [2.1.0] - 2026-03-15
+
+### Added
+- **Phase 6 implementation: parity audit**
+  - `docs/researchhub-migration-doc06.md` — design doc for field-by-field parity audit
+  - `migration/scripts/06-audit.js` — compares every record in Strapi 3 vs Strapi 5, categorizes differences as ERROR/EXPECTED/INFO
+  - `migration/scripts/06-run-phase.js` — interactive orchestrator
+  - Produces JSON + Markdown audit reports for stakeholder sign-off
+- **Strapi 5 Setup Guide** (`docs/STRAPI5-SETUP.md`)
+  - Fresh Strapi 5 installation steps
+  - PM2 ecosystem configuration
+  - Nginx reverse proxy with SSL
+  - Laravel Forge deployment instructions
+  - API token creation and permissions setup
+- `pnpm migrate:phase06` and `pnpm audit` shortcuts
+- Project Phases table updated to 6 phases (8–12 working days)
+
 ## [2.0.0] - 2026-03-15
 
 ### Added

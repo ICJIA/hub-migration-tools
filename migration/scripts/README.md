@@ -265,6 +265,41 @@ node migration/scripts/05-validate.js    # or: pnpm validate
 
 ---
 
+## Phase 6: Parity Audit
+
+### `06-run-phase.js` (recommended)
+
+**What it does:** Checks that both Strapi instances are accessible, runs the full audit, and prints summary with report locations.
+
+```bash
+node migration/scripts/06-run-phase.js    # or: pnpm migrate:phase06
+```
+
+### `06-audit.js`
+
+**What it does:** Comprehensive field-by-field comparison of every record in Strapi 3 vs Strapi 5. Unlike Phase 5 (pass/fail), this categorizes every difference:
+
+- **ERROR** — unexpected difference needing investigation
+- **EXPECTED** — intentional change (Base64 → media, image refs → URLs)
+- **INFO** — worth noting but not an issue (system fields, etc.)
+- **OK** — exact match
+
+Compares: all scalar fields, JSON fields (deep-equal), markdown text (stripped of image refs), media fields, timestamps (±1s), and all relation sets.
+
+**Requires:** Both Strapi 3 and Strapi 5 running. Phase 5 should pass first.
+
+**Produces:**
+- `migration/data/audit-report.json` — structured per-record findings
+- `migration/data/audit-report.md` — human-readable report for stakeholders
+
+**Exit codes:** 0 = zero ERRORs, 1 = ERRORs found.
+
+```bash
+node migration/scripts/06-audit.js    # or: pnpm audit
+```
+
+---
+
 ## Conventions
 
 All scripts follow the same patterns:

@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 2.0.0 ([Changelog](CHANGELOG.md))
+**Version:** 2.1.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -55,9 +55,10 @@ graph LR
 | 2. Data Extraction | Pull all content from Strapi 3 into local JSON files | 1 day |
 | 3. Image & Media Migration | Extract Base64 images, upload media files, rewrite references | 2–3 days |
 | 4. Content Loading | Load transformed content into Strapi 5, link relations, restore timestamps | 1–2 days |
-| 5. Validation | Automated verification of migration completeness and correctness | 1–2 days |
+| 5. Validation | Automated pass/fail verification of migration completeness | 1–2 days |
+| 6. Parity Audit | Field-by-field comparison of every record in Strapi 3 vs Strapi 5 | 1 day |
 
-**Total estimated effort:** 7–11 working days (single developer, sequential phases).
+**Total estimated effort:** 8–12 working days (single developer, sequential phases).
 
 ## Documentation
 
@@ -70,6 +71,8 @@ Detailed documentation for every aspect of this migration is available in the [`
 - **[Doc 03 — Phase 3: Base64 Extraction & Media Migration](docs/researchhub-migration-doc03.md)** — Image decoding, media library upload, and content rewriting
 - **[Doc 04 — Phase 4: Data Loading & Timestamp Restoration](docs/researchhub-migration-doc04.md)** — Content loading via REST API, relation triangle linking, and timestamp correction
 - **[Doc 05 — Phase 5: Validation & Reconciliation](docs/researchhub-migration-doc05.md)** — Automated verification checks and migration integrity report
+- **[Doc 06 — Phase 6: Parity Audit](docs/researchhub-migration-doc06.md)** — Field-by-field comparison of every record; detailed audit report with ERROR/EXPECTED/INFO categories
+- **[Strapi 5 Setup Guide](docs/STRAPI5-SETUP.md)** — Fresh Strapi 5 installation, PM2 + Nginx configuration, Laravel Forge deployment
 
 ### Strapi 3 Schemas
 
@@ -242,6 +245,32 @@ node migration/scripts/05-validate.js           # run all 10 validation checks
 ```
 
 **What it produces:** `migration/data/validation-report.json` with pass/fail per check and a console summary. See [Doc 05](docs/researchhub-migration-doc05.md) for details.
+
+### Phase 6: Parity Audit
+
+A comprehensive, field-by-field comparison of every record in Strapi 3 vs Strapi 5. Unlike Phase 5 (pass/fail), Phase 6 categorizes every difference as **ERROR** (unexpected), **EXPECTED** (intentional, like Base64 → media), or **INFO** (worth noting). Produces a detailed audit report for stakeholder sign-off.
+
+**Recommended — run the interactive orchestrator:**
+
+```bash
+pnpm migrate:phase06
+```
+
+**Or run directly:**
+
+```bash
+node migration/scripts/06-audit.js    # or: pnpm audit
+```
+
+**What it produces:**
+- `migration/data/audit-report.json` — structured per-record findings
+- `migration/data/audit-report.md` — human-readable report for stakeholders
+
+See [Doc 06](docs/researchhub-migration-doc06.md) for details.
+
+### Setting Up Strapi 5
+
+For detailed instructions on installing a fresh Strapi 5 instance, configuring PM2, Nginx, and Laravel Forge, see the **[Strapi 5 Setup Guide](docs/STRAPI5-SETUP.md)**.
 
 ## Risks and Mitigations
 
