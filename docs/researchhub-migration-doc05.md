@@ -396,7 +396,57 @@ If any check fails:
 
 ---
 
-## 9. LLM Build Prompt
+## 9. Migration Sign-Off Checklist
+
+This is the final checklist before the migration is considered complete and the frontend is switched to Strapi 5. Every item must pass.
+
+### Automated Validation (all from `05-validate.js`)
+
+- [ ] Check 1: Record counts — all 3 content types match between Strapi 3 and Strapi 5
+- [ ] Check 2: Legacy ID coverage — every Strapi 3 ID maps to exactly one Strapi 5 record
+- [ ] Check 3: Zero Base64 remnants — no `data:image/` strings in any Strapi 5 text field
+- [ ] Check 4: Splash image migration — all articles with splash images have media relations
+- [ ] Check 5: Dataset file migration — all datasets with files have media relations
+- [ ] Check 6: Media accessibility — every media URL returns HTTP 200
+- [ ] Check 7: Relation integrity — all m2m relations match between source and target
+- [ ] Check 8: Timestamp preservation — all `createdAt`/`updatedAt` match originals (±1s)
+- [ ] Check 9: Content integrity — title/slug exact match, body length plausible for sampled articles
+- [ ] Check 10: No duplicates — zero duplicate `legacyId` values in any table
+- [ ] `data/validation-report.json` shows `overallStatus: "PASS"` and `checksFailed: 0`
+- [ ] `05-validate.js` exits with code 0
+
+### Manual QA (Human Verification)
+
+- [ ] Browse ResearchHub frontend pointed at Strapi 5 — homepage loads correctly
+- [ ] Open 5 articles with known splash images — hero images render correctly
+- [ ] Open 5 articles with known inline images — all inline images render in the body
+- [ ] Open 3 articles with known dataset relations — "Related Datasets" links work
+- [ ] Open 3 articles with known app/dashboard relations — dashboard links work
+- [ ] Download 3 dataset Excel files — files download and open correctly
+- [ ] Check 3 app/dashboard links — external Tableau/ShinyProxy URLs resolve
+- [ ] Verify article publication dates display correctly (not migration date)
+- [ ] Search or browse for an article known to be the oldest — confirm date is historic
+- [ ] Check the Strapi 5 admin panel — can browse, search, and edit content without errors
+
+### Deployment Readiness
+
+- [ ] Strapi 5 SQLite database backed up (`cp data.db data.db.bak`)
+- [ ] Frontend configuration updated to point to Strapi 5 API (`:1338` or production URL)
+- [ ] Strapi 5 production environment configured (API tokens, CORS, upload settings)
+- [ ] DNS/proxy routing updated if applicable
+- [ ] Rollback plan documented: if issues found post-deploy, revert frontend to Strapi 3 while investigating
+
+### Sign-Off
+
+| Role | Name | Date | Approved |
+|------|------|------|----------|
+| Developer | | | [ ] |
+| QA / Reviewer | | | [ ] |
+| Project Lead | | | [ ] |
+
+---
+
+## 10. LLM Build Prompt
 
 The following prompt can be fed to Claude to implement this phase. It is self-contained.
 

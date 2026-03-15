@@ -550,7 +550,59 @@ If anything looks wrong, adjust the `config/field-type-map.json` overrides or th
 
 ---
 
-## 7. LLM Build Prompt
+## 7. Phase 1 Completion Checklist
+
+Before proceeding to Phase 2, every item below must pass. Items marked **(auto)** should be checked by `scripts/01c-verify-schemas.js`. Items marked **(manual)** require human verification in the Strapi 5 admin panel.
+
+### Automated Gate Checks (`scripts/01c-verify-schemas.js`)
+
+The verification script should exit 0 only if ALL of the following pass:
+
+- [ ] **(auto)** Strapi 5 is running and responds at `http://localhost:1338`
+- [ ] **(auto)** GraphQL introspection succeeds against Strapi 5
+- [ ] **(auto)** All 3 content types exist in Strapi 5: `Article`, `Dataset`, `App`
+- [ ] **(auto)** Every field from Strapi 3 has a corresponding field in Strapi 5 (accounting for expected type changes)
+- [ ] **(auto)** `splash` field on Article is type `UploadFile` (media), not `String`
+- [ ] **(auto)** `datafile` field on Dataset is type `UploadFile` (media)
+- [ ] **(auto)** `datasets` relation on Article exists and is `manyToMany` targeting `api::dataset.dataset`
+- [ ] **(auto)** `apps` relation on Article exists and is `manyToMany` targeting `api::app.app`
+- [ ] **(auto)** Inverse `articles` relation exists on both Dataset and App schemas
+- [ ] **(auto)** `legacyId` field exists on all 3 content types, typed as `string`, marked `unique`
+- [ ] **(auto)** `draftAndPublish` is `false` for all 3 content types
+- [ ] **(auto)** Strapi 5 REST API responds with empty collection: `GET /api/articles` returns `{ data: [], meta: {...} }`
+- [ ] **(auto)** `schema-diff.json` contains only expected differences (system fields, splash type change, inverse relations)
+- [ ] **(auto)** Field constraints (`required`, `unique`) from Strapi 3 models are preserved in generated schemas
+
+### Manual Gate Checks (Step 1d)
+
+- [ ] **(manual)** Open Strapi 5 admin panel → Content-Type Builder → all 3 types visible
+- [ ] **(manual)** Article edit form shows: `splash` as single image upload, `datasets` and `apps` as relation pickers
+- [ ] **(manual)** Dataset edit form shows: `datafile` as single file upload, `articles` as relation picker
+- [ ] **(manual)** App edit form shows: `articles` as relation picker, no media fields
+- [ ] **(manual)** Create a dummy entry for each content type → save → delete → no errors
+- [ ] **(manual)** Review `config/field-map.json` — field names and type conversions look correct
+
+### Parity Assertions
+
+These confirm the generated schemas faithfully represent the source:
+
+| Assertion | How to Verify |
+|-----------|---------------|
+| Same number of content types | Count types in `strapi3-models.json` vs. generated schemas |
+| Same number of fields per type (±expected additions like `legacyId`, inverse relations) | Compare field counts in `schema-diff.json` |
+| No fields dropped silently | `schema-diff.json` lists no unexpected missing fields |
+| Relation cardinality matches | Both m2m relations in Strapi 3 are m2m in Strapi 5 |
+| Field type mapping is correct | `config/field-map.json` entries match the mapping table in this doc |
+
+### Go / No-Go
+
+**Go:** All automated checks pass (exit 0), all manual checks confirmed, `schema-diff.json` reviewed and contains only expected differences.
+
+**No-go:** Any automated check fails, any field is missing or wrong-typed, Strapi 5 won't start. Fix the schema generator, re-run `01b`, re-copy to Strapi 5, restart, and re-verify.
+
+---
+
+## 8. LLM Build Prompt
 
 The following prompt can be fed to Claude to implement this phase. It is self-contained.
 

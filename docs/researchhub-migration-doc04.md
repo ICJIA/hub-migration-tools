@@ -338,7 +338,88 @@ Each step is independently re-runnable due to `legacyId` duplicate detection. If
 
 ---
 
-## 8. LLM Build Prompt
+## 8. Phase 4 Completion Checklist
+
+Before proceeding to Phase 5 (final validation), every item below must pass. A dedicated `scripts/04-verify.js` script should automate all **(auto)** checks. Run this script **after restarting Strapi 5** following the timestamp fix.
+
+### Automated Gate Checks (`scripts/04-verify.js`)
+
+**Record Loading:**
+
+- [ ] **(auto)** Strapi 5 article count (`GET /api/articles?pagination[pageSize]=1` → `meta.pagination.total`) matches raw extraction count
+- [ ] **(auto)** Strapi 5 dataset count matches raw extraction count
+- [ ] **(auto)** Strapi 5 app count matches raw extraction count
+- [ ] **(auto)** ID maps exist and are complete: `data/maps/articles.json`, `data/maps/datasets.json`, `data/maps/apps.json`
+- [ ] **(auto)** Every record in transformed data has a corresponding entry in its ID map
+- [ ] **(auto)** No duplicate `legacyId` values in Strapi 5 (SQLite query: `SELECT legacyId, COUNT(*) ... HAVING COUNT(*) > 1` returns 0 rows for all 3 tables)
+- [ ] **(auto)** Every Strapi 5 record has a non-null `legacyId` (`GET /api/articles?fields[0]=legacyId` — paginate through all, verify none are null)
+
+**Media Relations:**
+
+- [ ] **(auto)** Spot check 10 articles with known splash images: `GET /api/articles/{docId}?populate=splash` returns a media object
+- [ ] **(auto)** Spot check 10 datasets with known datafiles: `GET /api/datasets/{docId}?populate=datafile` returns a media object
+- [ ] **(auto)** Count of articles with non-null `splash` in Strapi 5 matches count of articles with non-null splash in raw data
+
+**Relations:**
+
+- [ ] **(auto)** For all articles with `_relatedDatasetIds` or `_relatedAppIds`: fetch from Strapi 5 with `?populate[datasets][fields][0]=legacyId&populate[apps][fields][0]=legacyId`
+- [ ] **(auto)** Related `legacyId` sets in Strapi 5 match `_relatedDatasetIds` / `_relatedAppIds` from transformed data
+- [ ] **(auto)** No orphaned relations (related entries that don't exist)
+- [ ] **(auto)** `data/load-report.json` exists with summary of created/skipped/failed counts
+
+**Timestamps:**
+
+- [ ] **(auto)** For all records in all 3 content types: `created_at` in SQLite matches `_originalCreatedAt` from transformed data (±1 second tolerance)
+- [ ] **(auto)** For all records: `updated_at` in SQLite matches `_originalUpdatedAt` (±1 second tolerance)
+- [ ] **(auto)** No record has `created_at` equal to the migration run date (would indicate the timestamp fix missed it)
+
+### Parity Assertions
+
+| Assertion | How to Verify |
+|-----------|---------------|
+| All records loaded | Strapi 5 counts = raw extraction counts for all 3 types |
+| No records duplicated | SQLite `GROUP BY legacyId HAVING COUNT(*) > 1` returns 0 rows |
+| All relations intact | Sum of related datasets/apps across all articles in Strapi 5 matches sum from transformed data |
+| Timestamps are historic | Sample 10 `created_at` values — all predate the migration run date |
+| Media relations set correctly | Count of articles with non-null splash in Strapi 5 = count in raw data |
+| ID maps are complete | Every transformed record's `legacyId` appears in the ID map |
+
+### Recommended: `scripts/04-verify.js`
+
+A standalone script that validates the full Phase 4 output:
+
+```
+node scripts/04-verify.js
+```
+
+This script should:
+1. Verify Strapi 5 is running (poll REST API)
+2. Check record counts via REST API
+3. Check for duplicates via SQLite
+4. Validate all relations by fetching every article's populated datasets/apps
+5. Validate timestamps by comparing SQLite `created_at`/`updated_at` against transformed data
+6. Validate media relations (splash, datafile) for all records
+7. Print pass/fail for each category (counts, duplicates, relations, timestamps, media)
+8. Exit 0 if all pass, exit 1 if any fail
+
+### Pre-Flight for Phase 5
+
+Before running Phase 5 validation:
+
+- [ ] Strapi 5 has been restarted after the timestamp fix (Step 4e)
+- [ ] Strapi 3 is still running (Phase 5 needs it for cross-instance comparison)
+- [ ] All `data/maps/` files are complete and up to date
+- [ ] `04-verify.js` passed (no point running Phase 5 on known-broken data)
+
+### Go / No-Go
+
+**Go:** All counts match, zero duplicates, all relations correct, all timestamps restored, all media relations set.
+
+**No-go:** Count mismatch (load script failed partway — re-run, it's idempotent), missing relations (re-run `04b-link-relations.js`), wrong timestamps (re-run `04c-fix-timestamps.js` after stopping Strapi 5), duplicates found (investigate — may need to delete duplicates manually or wipe and re-load).
+
+---
+
+## 9. LLM Build Prompt
 
 The following prompt can be fed to Claude to implement this phase. It is self-contained.
 

@@ -452,7 +452,82 @@ Save to `data/transformed/apps.json`.
 
 ---
 
-## 7. LLM Build Prompt
+## 7. Phase 3 Completion Checklist
+
+Phase 3 is the most complex phase. Before proceeding to Phase 4, every item below must pass. A dedicated `scripts/03-verify.js` script should automate all **(auto)** checks.
+
+### Automated Gate Checks (`scripts/03-verify.js`)
+
+**Scan & Decode:**
+
+- [ ] **(auto)** `data/media/manifest.json` exists and contains an `images` array
+- [ ] **(auto)** Every manifest entry has: `articleId`, `articleSlug`, `location`, `mimeType`, `filename`
+- [ ] **(auto)** No duplicate filenames in the manifest
+- [ ] **(auto)** File count in `data/media/files/` matches manifest `totalImages` minus manifest `failures` count
+- [ ] **(auto)** Every file in `data/media/files/` is > 0 bytes
+- [ ] **(auto)** Magic bytes of each decoded file match declared MIME type (PNG, JPEG, GIF, WebP)
+
+**Upload:**
+
+- [ ] **(auto)** `data/maps/media.json` exists
+- [ ] **(auto)** Entry count in `data/maps/media.json` matches decoded file count
+- [ ] **(auto)** Every media map entry has: `strapi5MediaId` (integer), `strapi5Url` (string starting with `/uploads/`)
+- [ ] **(auto)** Every media URL is accessible: `HEAD http://localhost:1338{url}` returns HTTP 200
+
+**Rewrite:**
+
+- [ ] **(auto)** `data/transformed/articles.json` exists with same record count as `data/raw/articles.json`
+- [ ] **(auto)** Zero `data:image/` substrings in any `body` field across all transformed articles
+- [ ] **(auto)** Every article that had a non-null `splash` in raw data now has an integer `splash` value in transformed data
+- [ ] **(auto)** Every article that had a null/empty `splash` in raw data has `splash: null` in transformed data
+- [ ] **(auto)** All inline image references in transformed `body` fields use `/uploads/` URLs (not Base64)
+- [ ] **(auto)** Every transformed article has: `legacyId`, `_originalCreatedAt`, `_originalUpdatedAt`
+
+**Dataset & App Transform:**
+
+- [ ] **(auto)** `data/transformed/datasets.json` exists with same record count as `data/raw/datasets.json`
+- [ ] **(auto)** Every dataset with a non-null `datafile` in raw data has an integer `datafile` value in transformed data
+- [ ] **(auto)** `data/transformed/apps.json` exists with same record count as `data/raw/apps.json`
+- [ ] **(auto)** Every record in all 3 transformed files has: `legacyId` matching MongoDB ObjectId format
+
+### Parity Assertions
+
+| Assertion | How to Verify |
+|-----------|---------------|
+| No images lost | Manifest `totalImages` = decoded file count + failure count |
+| No uploads lost | Media map entry count = decoded file count |
+| No articles gained or lost | `data/transformed/articles.json` record count = `data/raw/articles.json` record count |
+| Splash parity | Count of non-null `splash` in raw = count of integer `splash` in transformed |
+| Dataset file parity | Count of non-null `datafile` in raw = count of integer `datafile` in transformed |
+| Body content preserved | For 10 random articles: non-image text in `body` is identical between raw and transformed (only image references changed) |
+| Timestamps carried forward | For all records: `_originalCreatedAt` in transformed matches `created_at` in raw |
+| Relations carried forward | For all articles: `_relatedDatasetIds` count in transformed matches `datasets` array length in raw |
+
+### Recommended: `scripts/03-verify.js`
+
+A standalone script that validates the full Phase 3 output:
+
+```
+node scripts/03-verify.js
+```
+
+This script should:
+1. Load manifest, media map, and all raw/transformed files
+2. Run all automated checks above
+3. For the body-content parity check: strip all image markdown from both raw and transformed bodies, then compare — non-image content should be identical
+4. For media accessibility: HEAD-request a random sample of 20 media URLs (or all, if < 100)
+5. Print pass/fail for each check category (scan, decode, upload, rewrite, dataset, app)
+6. Exit 0 if all pass, exit 1 if any fail
+
+### Go / No-Go
+
+**Go:** Zero Base64 remnants, all media uploaded and accessible, all transformed files have correct record counts and `legacyId` fields, splash/datafile fields are integer media IDs.
+
+**No-go:** Base64 remnants found (regex missed images — expand the pattern), media upload failures (check Strapi 5 upload limits), missing/corrupt decoded files (check Base64 data integrity). Fix the issue in the appropriate substep and re-run from that point forward.
+
+---
+
+## 8. LLM Build Prompt
 
 The following prompt can be fed to Claude to implement this phase. It is self-contained.
 

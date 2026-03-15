@@ -117,6 +117,20 @@ The migration is split into five phases, each with its own design document. Phas
 Phase 1 (Schema) → Phase 2 (Extract) → Phase 3 (Base64 + Media) → Phase 4 (Load) → Phase 5 (Validate)
 ```
 
+### Validation Strategy: Gate Checks at Every Phase
+
+Each phase has a **gate** — a set of automated and manual checks that must pass before proceeding to the next phase. This prevents cascading errors that are expensive to diagnose later. The principle is: **never advance with dirty data.**
+
+| Phase | Gate Script | What It Validates | Blocks |
+|-------|-------------|-------------------|--------|
+| 1 | `scripts/01c-verify-schemas.js` | All content types exist in Strapi 5, all fields present with correct types, relations properly defined, `legacyId` field present, splash is media type | Phase 2 |
+| 2 | Built into `scripts/02-extract.js` (post-extraction checks) | Record counts match Strapi 3 REST count endpoints, all records have IDs, timestamps present, JSON files parseable | Phase 3 |
+| 3 | `scripts/03-verify.js` (dedicated Phase 3 validation) | Zero Base64 remnants in transformed articles, all manifest images decoded and uploaded, all splash fields are media IDs, all dataset files uploaded, media accessible in Strapi 5 | Phase 4 |
+| 4 | `scripts/04-verify.js` (dedicated Phase 4 validation) | Record counts match in Strapi 5, all relations linked correctly, timestamps restored to original values, no duplicate records, splash/datafile media accessible | Phase 5 |
+| 5 | `scripts/05-validate.js` | End-to-end reconciliation across Strapi 3 and Strapi 5 — the final comprehensive check | Deployment |
+
+**Rule:** If any gate check fails, stop. Diagnose and fix before proceeding. Re-running a later phase on bad upstream data wastes time and creates confusing error trails.
+
 ### Phase 1 Detail: Programmatic Schema Generation
 
 Strapi 5 defines content types as `schema.json` files stored in `./src/api/[api-name]/content-types/[content-type-name]/`. When Strapi 5 starts in development mode, it reads these files and auto-creates the corresponding database tables. This means content types can be generated entirely by writing JSON files — no admin UI interaction required.
@@ -363,15 +377,18 @@ researchhub-migration/
 │   ├── 01b-generate-schemas.js # Phase 1: Generate Strapi 5 schema.json files
 │   ├── 01c-verify-schemas.js  # Phase 1: Introspect Strapi 5, diff against Strapi 3
 │   ├── 02-extract.js          # Phase 2: Pull data from Strapi 3
+│   ├── 02-verify.js           # Phase 2: Post-extraction validation gate
 │   ├── 03a-scan-base64.js     # Phase 3a: Scan articles, produce media manifest
 │   ├── 03b-decode-base64.js   # Phase 3b: Decode Base64 → binary files
 │   ├── 03c-upload-media.js    # Phase 3c: Upload files to Strapi 5 media library
 │   ├── 03d-rewrite-content.js # Phase 3d: Replace Base64 with media URLs in articles
 │   ├── 03e-transform.js       # Phase 3e: Reshape all other content types
+│   ├── 03-verify.js           # Phase 3: Post-transform validation gate
 │   ├── 04-load.js             # Phase 4: Insert into Strapi 5
 │   ├── 04b-link-relations.js  # Phase 4: Second pass for relations
 │   ├── 04c-fix-timestamps.js  # Phase 4: Restore createdAt/updatedAt via SQLite
-│   └── 05-validate.js         # Phase 5: Reconciliation
+│   ├── 04-verify.js           # Phase 4: Post-load validation gate
+│   └── 05-validate.js         # Phase 5: End-to-end reconciliation
 ├── lib/
 │   ├── graphql-client.js      # Shared GQL fetch wrapper
 │   ├── rest-client.js         # Shared REST fetch wrapper

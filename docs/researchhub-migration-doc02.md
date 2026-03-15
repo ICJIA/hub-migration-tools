@@ -321,7 +321,66 @@ All `id` fields in the extracted data will be MongoDB ObjectId strings (e.g., `"
 
 ---
 
-## 10. LLM Build Prompt
+## 10. Phase 2 Completion Checklist
+
+Before proceeding to Phase 3, every item below must pass. Items marked **(auto)** are checked by the post-extraction verification built into `scripts/02-extract.js`. Items marked **(script)** would benefit from a dedicated `scripts/02-verify.js` script for re-verification without re-extracting.
+
+### Automated Gate Checks (built into `02-extract.js` + recommended `02-verify.js`)
+
+- [ ] **(auto)** Article count in `data/raw/articles.json` matches `GET /articles/count` from Strapi 3
+- [ ] **(auto)** Dataset count in `data/raw/datasets.json` matches `GET /datasets/count` from Strapi 3
+- [ ] **(auto)** App count in `data/raw/apps.json` matches `GET /apps/count` from Strapi 3
+- [ ] **(script)** Every record in all 3 files has a non-null `id` field matching MongoDB ObjectId format (`/^[a-f0-9]{24}$/`)
+- [ ] **(script)** Every record has `created_at` and `updated_at` fields (non-null)
+- [ ] **(script)** All 3 JSON files parse without errors (`JSON.parse` succeeds)
+- [ ] **(script)** No duplicate `id` values within any single file
+- [ ] **(script)** Article `datasets` and `apps` relation arrays are present (even if empty)
+- [ ] **(script)** Dataset `datafile` objects (when non-null) contain `url`, `name`, `mime`, `ext`
+- [ ] **(script)** Manifest `data/raw/manifest.json` exists and counts match file contents
+
+### Parity Assertions
+
+These confirm the extraction faithfully captured all source data:
+
+| Assertion | How to Verify |
+|-----------|---------------|
+| Record counts match exactly | Compare `manifest.json` counts against Strapi 3 REST `/count` endpoints |
+| No records lost to pagination | Total extracted = sum of all pages; no page returned 0 records unexpectedly |
+| No records lost to draft filtering | If Strapi 3 has `draftAndPublish`, compare GQL count vs REST count (REST may include drafts GQL filters out) |
+| Timestamps captured for every record | Count records with non-null `created_at` = total record count |
+| Relations captured | For articles with known relations (spot check 10), verify `datasets`/`apps` arrays are non-empty |
+| Base64 data present | For articles with known splash images (spot check 10), verify `splash` field contains `data:image/` or raw Base64 |
+| Media references complete | For datasets with files (spot check 10), verify `datafile.url` is non-null |
+
+### Recommended: `scripts/02-verify.js`
+
+A standalone verification script that can be run independently of extraction:
+
+```
+node scripts/02-verify.js
+```
+
+This script should:
+1. Read all 3 raw JSON files and the manifest
+2. Validate every record has `id`, `created_at`, `updated_at`
+3. Check for duplicate IDs
+4. Verify manifest counts match actual file record counts
+5. Hit Strapi 3 REST count endpoints and compare
+6. Spot-check 10 random articles for `splash` field presence and relation arrays
+7. Spot-check 10 random datasets for `datafile` object completeness
+8. Print a pass/fail summary and exit 0 (all pass) or 1 (any fail)
+
+This is useful when re-verifying after Strapi 3 data changes without re-running the full extraction.
+
+### Go / No-Go
+
+**Go:** All counts match, all records have IDs and timestamps, JSON files are valid, spot checks confirm relations and media references are captured.
+
+**No-go:** Count mismatch (pagination bug or draft filtering), missing timestamps (field name mismatch), or corrupt JSON (encoding issues). Diagnose, fix the extraction query or pagination logic, and re-extract.
+
+---
+
+## 11. LLM Build Prompt
 
 The following prompt can be fed to Claude to implement this phase. It is self-contained.
 
