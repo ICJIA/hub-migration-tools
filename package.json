@@ -8,7 +8,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "clean": "node migration/scripts/00-clean.js",
+    "migrate:clean": "node migration/scripts/00-clean.js",
     "migrate:phase01": "node migration/scripts/01-run-phase.js",
     "migrate:phase02": "node migration/scripts/02-run-phase.js",
     "migrate:phase03": "node migration/scripts/03-run-phase.js",

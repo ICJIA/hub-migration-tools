@@ -150,7 +150,7 @@ Every script prints its configuration at startup so you can verify target URLs b
 To wipe all generated migration data and start fresh:
 
 ```bash
-pnpm clean
+pnpm migrate:clean
 ```
 
 This removes `migration/data/`, `migration/output/`, and the generated field map. Scripts, libraries, static config, and source schemas are preserved.
@@ -166,7 +166,7 @@ If you need to re-run the entire migration from scratch (e.g., after fixing a sc
 rm /path/to/strapi5-project/.tmp/data.db
 
 # 3. Clean migration data
-pnpm clean
+pnpm migrate:clean
 
 # 4. Restart Strapi 5 — it recreates the DB from the existing schema files
 cd /path/to/strapi5-project && npm run develop
