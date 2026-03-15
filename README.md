@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 0.5.0 ([Changelog](CHANGELOG.md))
+**Version:** 0.6.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -77,6 +77,7 @@ The actual Strapi 3 model schemas are stored in [`schemas/`](schemas/) for refer
 ### Prerequisites
 
 - Node.js 18+ (see `.nvmrc` — project targets Node 22)
+- pnpm (`npm install -g pnpm` if not already installed)
 - A fresh Strapi 5 project (`npx create-strapi@latest`) for Phase 1c onward
 - `@strapi/plugin-graphql` installed in the Strapi 5 project (for schema verification)
 
@@ -85,6 +86,7 @@ The actual Strapi 3 model schemas are stored in [`schemas/`](schemas/) for refer
 All scripts read from a single config file at the project root. Copy the example and customize:
 
 ```bash
+pnpm install
 cp config.example.js config.js
 ```
 
@@ -112,7 +114,7 @@ node scripts/01b-generate-schemas.js
 cp -r output/strapi5-schemas/* /path/to/strapi5-project/src/api/
 
 # Step 4: Start Strapi 5 in dev mode (it reads schemas and creates tables)
-cd /path/to/strapi5-project && npm run develop
+cd /path/to/strapi5-project && pnpm develop
 
 # Step 5: Verify schemas were applied correctly (Strapi 5 must be running)
 node scripts/01c-verify-schemas.js

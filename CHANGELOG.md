@@ -9,6 +9,21 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [0.6.0] - 2026-03-15
+
+### Added
+- Comprehensive JSDoc comments on all exported functions and modules
+- `scripts/README.md` — developer-facing documentation for all scripts
+- Getting Started section in main README with Phase 1 step-by-step instructions
+- Red ANSI error messages in all scripts for connection failures and missing files
+- Config display at startup in all scripts so users can verify target URLs
+- `config.example.js` expanded as single source of truth: all paths, timeouts, pagination limits, polling settings with JSDoc
+
+### Changed
+- Strapi 3 default URL changed to `https://researchhub.icjia-api.cloud` (production)
+- Package manager switched to pnpm (`packageManager` field in package.json, pnpm-lock.yaml)
+- Strapi 3 introspection data updated from live production instance
+
 ## [0.5.0] - 2026-03-15
 
 ### Added
@@ -17,7 +32,7 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
   - `scripts/01b-generate-schemas.js` — generates Strapi 5 schema.json + boilerplate
   - `scripts/01c-verify-schemas.js` — introspects Strapi 5, diffs against Strapi 3, verifies REST API
   - `lib/schema-generator.js` — core logic: field type mapping, relation conversion, upload plugin handling
-- `package.json` with `type: "module"` and npm script shortcuts
+- `package.json` with `type: "module"` and pnpm script shortcuts
 - `config.example.js` — config template using environment variables for tokens
 - `config/field-type-map.json` — field type mapping rules with 3 Base64-to-media overrides
 - `.gitignore` now excludes `config.js` (contains API tokens)
