@@ -216,7 +216,8 @@ function generateSchema(ctName, model, fieldTypeMap, relationGraph) {
  * Generate minimal Strapi 5 boilerplate files (route, controller, service)
  * that are required alongside each schema.json.
  *
- * Uses ESM syntax (`import`/`export default`) for Strapi 5 compatibility.
+ * Uses CommonJS syntax (`require`/`module.exports`) because Strapi 5 projects
+ * default to CommonJS (no `"type": "module"` in their package.json).
  *
  * @param {string} ctName - Content type name (e.g., "article")
  * @returns {{route: string, controller: string, service: string}} File contents as strings
@@ -224,9 +225,9 @@ function generateSchema(ctName, model, fieldTypeMap, relationGraph) {
 function generateBoilerplate(ctName) {
   const uid = `api::${ctName}.${ctName}`;
   return {
-    route: `import { createCoreRouter } from '@strapi/strapi/factories';\nexport default createCoreRouter('${uid}');\n`,
-    controller: `import { createCoreController } from '@strapi/strapi/factories';\nexport default createCoreController('${uid}');\n`,
-    service: `import { createCoreService } from '@strapi/strapi/factories';\nexport default createCoreService('${uid}');\n`,
+    route: `'use strict';\nconst { createCoreRouter } = require('@strapi/strapi').factories;\nmodule.exports = createCoreRouter('${uid}');\n`,
+    controller: `'use strict';\nconst { createCoreController } = require('@strapi/strapi').factories;\nmodule.exports = createCoreController('${uid}');\n`,
+    service: `'use strict';\nconst { createCoreService } = require('@strapi/strapi').factories;\nmodule.exports = createCoreService('${uid}');\n`,
   };
 }
 
