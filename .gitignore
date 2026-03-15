@@ -1,10 +1,11 @@
 # Dependencies
 node_modules/
 
-# Environment
+# Environment and secrets
 .env
 .env.local
 .env.*.local
+config.js
 
 # Strapi
 .tmp/

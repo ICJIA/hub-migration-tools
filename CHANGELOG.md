@@ -9,6 +9,39 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [0.4.0] - 2026-03-15
+
+### Fixed
+- Executive summary: apps complexity changed from "Low" to "Medium"
+- Doc 00: content type count changed from "< 10" to "3"; "10 content types" reference fixed
+- Doc 00: dataset.apps `via` value corrected from "via apps" to "via datasets" (matching actual schema)
+- Doc 00: Phase 3 substep count changed from "four" to "six"
+- Doc 00: `documentId` description changed from "UUID" to "auto-generated alphanumeric string"
+- Doc 00: SQL example now notes table names need verification via `sqlite_master`
+- Doc 02: GraphQL client now includes optional Authorization header
+- Doc 03: image count math fixed (230+225+182+15=652, not 412)
+- Doc 03: app scan count fixed from 30 to 15
+- Doc 03: `require()` calls replaced with ES module `import` statements
+- Doc 03: step 3e now reads from `data/transformed/articles.json` (not raw), preventing overwrite of step 3d output
+- Doc 03: removed `documentId` from media upload response (media files don't have documentId)
+- Doc 03: removed `_relatedAppIds` from article transform (articles are non-dominant on article-app)
+- Doc 03: LLM prompt regex typo fixed (`!/\[` → `/!\[`)
+- Doc 04: removed `_relatedAppIds` reference from article load instructions
+- Doc 04: SQL column/table name verification guidance added
+- Doc 05: check name in report template fixed (`splash_image_migration` → `image_media_migration`)
+- Doc 05: transformed data field descriptions corrected per content type
+- Doc 05: Check 3 scope expanded to scan all content types, not just articles
+
+### Added
+- Doc 00: Section 5.11 — Draft/Publish State guidance for `draftAndPublish: false`
+- Doc 00: Security note about `config.js` containing tokens; recommends env vars
+- Doc 04: Draft/publish verification note at start of loading steps
+- Doc 04: Rate limiting guidance (100ms delay) in LLM build prompt
+- Doc 05: SQL column name verification notes (snake_case `legacy_id`, plural table names)
+- `.gitignore`: added `config.js` to prevent committing API tokens
+- Executive summary .docx regenerated with corrected app complexity
+- Dataset/app record counts updated from "TBD" to ~42/~15 in doc 00
+
 ## [0.3.0] - 2026-03-15
 
 ### Changed

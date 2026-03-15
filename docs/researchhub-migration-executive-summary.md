@@ -62,7 +62,7 @@ This approach is safer than a direct database conversion because each system han
 |-------------|-------------|-------------------|------------|
 | Articles | Research articles with text, images, and links to related datasets and dashboards | ~250 | High — images must be extracted from text and properly stored |
 | Datasets | Downloadable data files (Excel spreadsheets) with titles and descriptions | ~42 | Medium — files must be transferred between media libraries |
-| Apps (Dashboards) | Links to interactive Tableau and ShinyProxy dashboards | ~15 | Low — straightforward text and URL transfer |
+| Apps (Dashboards) | Links to interactive Tableau and ShinyProxy dashboards | ~15 | Medium — has Base64 image field, two many-to-many relations to articles and datasets |
 
 All relationships between content types (e.g., an article linking to its related datasets) will be preserved.
 

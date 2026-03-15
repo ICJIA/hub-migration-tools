@@ -21,7 +21,7 @@ Migrate the ResearchHub content database from Strapi 3 (MongoDB) to Strapi 5 (SQ
 
 ### Scope
 
-- **In scope:** All ResearchHub content types (< 10), ~250 articles with embedded Base64 images requiring extraction and media library migration, media files (images, PDFs), relations between content types, field mapping and transformation.
+- **In scope:** All 3 ResearchHub content types (article, dataset, app), ~250 articles with embedded Base64 images requiring extraction and media library migration, media files (images, PDFs), relations between content types, field mapping and transformation.
 - **Out of scope:** i18n/localization (not used), dynamic zones (not used), draft/publish state preservation (all content treated as published), user accounts and permissions (recreated manually in Strapi 5), Strapi admin customizations or plugins.
 
 ### The Central Challenge: Base64 Image Extraction
@@ -67,8 +67,8 @@ With ~250 articles, each potentially containing a splash image plus multiple inl
 | # | Strapi 3 Content Type | collectionName | Key Fields | Relations | Media / Base64 Fields | Est. Records |
 |---|----------------------|----------------|-----------|-----------|----------------------|-------------|
 | 1 | `article` | `article` (singular) | title, status, slug, date, external(bool), categories(json), tags(json), authors(json), abstract, markdown(text — the body field), mainfiletype, doi, hideFromBanner(bool), funding, citation | `datasets` m2m (article dominant, via articles), `apps` m2m (app dominant, via articles) | `splash`(string, Base64), `thumbnail`(string, likely Base64), `images`(json), `mainfile`(upload plugin), `extrafile`(upload plugin), inline Base64 in markdown | ~250 |
-| 2 | `dataset` | `dataset` (singular) | title, status, slug, date, external(bool), categories(json), tags(json), project(bool), sources(json), unit, timeperiod(json), description(text), notes(json), variables(json), funding, citation | `articles` m2m (article dominant, via datasets), `apps` m2m (app dominant, via apps) | `datafile`(upload plugin) | TBD |
-| 3 | `app` | `app` (singular) | title, status, slug, date, external(bool), categories(json), tags(json), contributors(json), description(text), url, funding, citation | `datasets` m2m (app dominant, via apps), `articles` m2m (app dominant, via apps) | `image`(string, likely Base64) | TBD |
+| 2 | `dataset` | `dataset` (singular) | title, status, slug, date, external(bool), categories(json), tags(json), project(bool), sources(json), unit, timeperiod(json), description(text), notes(json), variables(json), funding, citation | `articles` m2m (article dominant, via datasets), `apps` m2m (app dominant, via datasets) | `datafile`(upload plugin) | ~42 |
+| 3 | `app` | `app` (singular) | title, status, slug, date, external(bool), categories(json), tags(json), contributors(json), description(text), url, funding, citation | `datasets` m2m (app dominant, via apps), `articles` m2m (app dominant, via apps) | `image`(string, likely Base64) | ~15 |
 
 **Schema notes:**
 - All three types share common fields: title, status, slug, date, external, categories, tags, funding, citation.
@@ -141,7 +141,7 @@ Each phase has a **gate** — a set of automated and manual checks that must pas
 | Phase | Gate Script | What It Validates | Blocks |
 |-------|-------------|-------------------|--------|
 | 1 | `scripts/01c-verify-schemas.js` | All content types exist in Strapi 5, all fields present with correct types, relations properly defined (triangle graph), `legacyId` field present, splash/thumbnail/image are media type | Phase 2 |
-| 2 | Built into `scripts/02-extract.js` (post-extraction checks) | Record counts match Strapi 3 REST count endpoints, all records have IDs, timestamps present, JSON files parseable | Phase 3 |
+| 2 | Built into `scripts/02-extract.js` + standalone `scripts/02-verify.js` | Record counts match Strapi 3 REST count endpoints, all records have IDs, timestamps present, JSON files parseable | Phase 3 |
 | 3 | `scripts/03-verify.js` (dedicated Phase 3 validation) | Zero Base64 remnants in transformed articles/apps, all manifest images decoded and uploaded, all splash/thumbnail/image fields are media IDs, all upload-plugin files (mainfile, extrafile, datafile) uploaded, media accessible in Strapi 5 | Phase 4 |
 | 4 | `scripts/04-verify.js` (dedicated Phase 4 validation) | Record counts match in Strapi 5, all relations linked correctly (triangle graph), timestamps restored to original values, no duplicate records, all media accessible (splash, thumbnail, image, mainfile, extrafile, datafile) | Phase 5 |
 | 5 | `scripts/05-validate.js` | End-to-end reconciliation across Strapi 3 and Strapi 5 — the final comprehensive check | Deployment |
@@ -201,7 +201,7 @@ After generating all schema files, also generate the corresponding route, contro
 
 ### Phase 3 Detail: Base64 Extraction Pipeline
 
-Phase 3 is the most complex phase and the heart of the migration. It has four substeps executed in order:
+Phase 3 is the most complex phase and the heart of the migration. It has six substeps executed in order:
 
 **Step 3a — Scan & Inventory.** Parse all raw JSON files. For each article, detect Base64 content in (1) the `splash` field, (2) the `thumbnail` field, and (3) inline markdown images in the `markdown` field. Also scan each app's `image` field for Base64 content. Produce a manifest: `data/media/manifest.json` listing every image found, its source record and content type, location (splash/thumbnail/image/inline), MIME type (detected from the Base64 header `data:image/png;base64,` or `data:image/jpeg;base64,`), and a generated filename.
 
@@ -254,7 +254,7 @@ Strapi 5 content types are defined by `schema.json` files in `./src/api/[api-nam
 
 **Alternatives considered:**
 
-- *Admin UI (Content-Type Builder):* Manual, error-prone for 10 content types with multiple fields each. Not scriptable.
+- *Admin UI (Content-Type Builder):* Manual, error-prone for 3 content types with multiple fields each. Not scriptable.
 - *`strapi generate` CLI:* Interactive wizard, not easily automated.
 - *Content-Type Builder internal API:* Undocumented, unstable, only works in dev mode. Fragile for automation.
 
@@ -315,7 +315,7 @@ All extracted and transformed data is stored as local JSON files in a `data/` di
 
 | Source (Strapi 3) | Target (Strapi 5) | Stored In |
 |-------------------|-------------------|-----------|
-| MongoDB ObjectId (string) | `documentId` (UUID, auto-generated) | `data/maps/{contentType}.json` |
+| MongoDB ObjectId (string) | `documentId` (auto-generated alphanumeric string) | `data/maps/{contentType}.json` |
 | Media file ID (ObjectId) | New media ID (integer) | `data/maps/media.json` |
 
 After creating each entry in Strapi 5, capture the returned `documentId` and record the mapping. Use this table in Phase 4 to resolve relations.
@@ -333,6 +333,8 @@ UPDATE articles
 SET created_at = ?, updated_at = ?
 WHERE document_id = ?;
 ```
+
+> **Note:** Table names in Strapi 5 may be plural (derived from `pluralName` in `schema.json`) and should be verified before running any direct SQL. Run `SELECT name FROM sqlite_master WHERE type='table';` against the Strapi 5 SQLite database to confirm the actual table names.
 
 This approach is preferred over alternatives because:
 
@@ -381,6 +383,10 @@ Each record in Strapi 5 stores its original Strapi 3 MongoDB ObjectId in a `lega
 
 The schema generator (Phase 1) adds this field automatically to every generated `schema.json`. The extraction (Phase 2) captures the `id` field. The transform (Phase 3) maps it to `legacyId`. The load script (Phase 4) uses it for duplicate detection.
 
+### 5.11 Draft/Publish State
+
+**Decision: All schemas set `draftAndPublish: false`. However, if Strapi 5 defaults to draft state for created entries regardless of this setting, the load script (Phase 4) must explicitly publish each entry or the content may be invisible via the public API. Phase 1 verification should confirm that entries created with `draftAndPublish: false` are immediately visible via the REST API without needing a separate publish step.**
+
 ---
 
 ## 6. Project Structure
@@ -389,6 +395,11 @@ The schema generator (Phase 1) adds this field automatically to every generated 
 researchhub-migration/
 ├── package.json
 ├── config.js                  # API URLs, tokens, content type list
+│   # ⚠ Security note: config.js contains API tokens and should NOT be
+│   # committed to version control. Use environment variables (e.g.,
+│   # process.env.STRAPI3_TOKEN, process.env.STRAPI5_TOKEN) or a .env file
+│   # with .gitignore protection. A config.example.js with placeholder
+│   # values can be committed instead.
 ├── config/
 │   ├── field-type-map.json    # Strapi 3 → Strapi 5 field type mapping rules
 │   └── field-map.json         # Generated: per-content-type field mapping

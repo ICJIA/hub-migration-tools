@@ -117,7 +117,7 @@ GET http://localhost:1338/api/articles?fields[0]=legacyId&pagination[pageSize]=1
 
 Scan all text/markdown fields in Strapi 5 for any remaining `data:image/` strings.
 
-Fetch all articles from Strapi 5 (paginated) and check the `markdown` field (the primary content field, NOT `body`) and other text/string fields that could contain Base64 (e.g., `abstract`, `description`) for the substring `data:image/`.
+Fetch all records from Strapi 5 (paginated) across all content types and check text fields for the substring `data:image/`. For articles, scan `markdown` (the primary content field, NOT `body`) and `abstract`. For apps and datasets, scan the `description` field.
 
 **Pass criteria:** Zero matches across all records.
 
@@ -128,14 +128,16 @@ Fetch all articles from Strapi 5 (paginated) and check the `markdown` field (the
   "status": "PASS",
   "details": {
     "articlesScanned": 250,
-    "fieldsScanned": ["markdown", "abstract"],
+    "appsScanned": 15,
+    "datasetsScanned": 42,
+    "fieldsScanned": { "articles": ["markdown", "abstract"], "apps": ["description"], "datasets": ["description"] },
     "remnantsFound": 0,
-    "affectedArticles": []
+    "affectedRecords": []
   }
 }
 ```
 
-If any remnants are found, list the article `legacyId` and the field name.
+If any remnants are found, list the record's content type, `legacyId`, and the field name.
 
 ---
 
@@ -309,6 +311,8 @@ HAVING cnt > 1;
 
 Repeat for `dataset` and `app` tables (singular names, matching the `collectionName` from the Strapi 3 schemas).
 
+> **Note:** Verify actual column names before running. Strapi 5 SQLite likely stores `legacyId` as `legacy_id` (snake_case). Use `PRAGMA table_info({table})` to confirm. Table names are likely plural (`articles`, `datasets`, `apps`).
+
 **Pass criteria:** Zero rows returned for all three queries.
 
 ---
@@ -329,7 +333,7 @@ The complete report is saved as `data/validation-report.json`:
     { "check": "record_counts", "status": "PASS", "details": { ... } },
     { "check": "legacy_id_coverage", "status": "PASS", "details": { ... } },
     { "check": "zero_base64_remnants", "status": "PASS", "details": { ... } },
-    { "check": "splash_image_migration", "status": "PASS", "details": { ... } },
+    { "check": "image_media_migration", "status": "PASS", "details": { ... } },
     { "check": "dataset_file_migration", "status": "PASS", "details": { ... } },
     { "check": "media_accessibility", "status": "PASS", "details": { ... } },
     { "check": "relation_integrity", "status": "PASS", "details": { ... } },
@@ -359,7 +363,7 @@ The script prints a summary table at the end:
 
   ✓ Record counts .............. PASS (250 articles, 42 datasets, 15 apps)
   ✓ Legacy ID coverage ......... PASS (307/307 mapped)
-  ✓ Zero Base64 remnants ....... PASS (0 found in 250 articles, checked markdown+abstract)
+  ✓ Zero Base64 remnants ....... PASS (0 found in 250 articles + 15 apps + 42 datasets)
   ✓ Image/media migration ...... PASS (splash 230/230, thumbnail 180/180, mainfile 100/100, extrafile 25/25, app image 12/12)
   ✓ Dataset file migration ..... PASS (38/38 migrated)
   ✓ Media accessibility ........ PASS (452/452 accessible)
@@ -428,7 +432,7 @@ This is the final checklist before the migration is considered complete and the 
 
 - [ ] Check 1: Record counts — all 3 content types match between Strapi 3 and Strapi 5
 - [ ] Check 2: Legacy ID coverage — every Strapi 3 ID maps to exactly one Strapi 5 record
-- [ ] Check 3: Zero Base64 remnants — no `data:image/` strings in any Strapi 5 `markdown`, `abstract`, or `description` field
+- [ ] Check 3: Zero Base64 remnants — no `data:image/` strings in any Strapi 5 article `markdown`/`abstract` field or app/dataset `description` field
 - [ ] Check 4: Image/media migration — all articles with splash/thumbnail/mainfile/extrafile and all apps with image have media relations
 - [ ] Check 5: Dataset file migration — all datasets with files have media relations; article mainfile/extrafile verified
 - [ ] Check 6: Media accessibility — every media URL returns HTTP 200
@@ -506,7 +510,9 @@ Strapi 5 SQLite: path in `config.js` as `strapi5DbPath`
 
 Available data files:
 - `data/raw/articles.json`, `data/raw/datasets.json`, `data/raw/apps.json` (original Strapi 3 data)
-- `data/transformed/articles.json`, `data/transformed/datasets.json`, `data/transformed/apps.json` (expected Strapi 5 data, with `_originalCreatedAt`, `_originalUpdatedAt`, `_relatedDatasetIds`, `_relatedAppIds`)
+- `data/transformed/articles.json` — with `_originalCreatedAt`, `_originalUpdatedAt`, `_relatedDatasetIds`
+- `data/transformed/apps.json` — with `_originalCreatedAt`, `_originalUpdatedAt`, `_relatedArticleIds`, `_relatedDatasetIds`
+- `data/transformed/datasets.json` — with `_originalCreatedAt`, `_originalUpdatedAt`
 - `data/maps/articles.json`, `data/maps/datasets.json`, `data/maps/apps.json` (legacyId → strapi5DocumentId)
 - `data/maps/media.json` (filename → strapi5MediaId, strapi5Url)
 
@@ -522,7 +528,7 @@ Runs 10 validation checks in sequence and produces a report:
 
 **Check 2: Legacy ID coverage** — Fetch all legacyIds from Strapi 5 (paginated), compare against ids in `data/raw/*.json`. Report any missing or orphaned.
 
-**Check 3: Zero Base64 remnants** — Fetch all article `markdown` fields from Strapi 5 (paginated, `fields[0]=markdown`), search each for `data:image/`. Also scan `abstract` and app/dataset `description` fields. Report any matches.
+**Check 3: Zero Base64 remnants** — Fetch all records from Strapi 5 (paginated) across all content types: scan article `markdown` and `abstract` fields, and app and dataset `description` fields for `data:image/`. Report any matches.
 
 **Check 4: Image/media migration** — Identify articles with non-null `splash`, `thumbnail`, `mainfile`, or `extrafile` in `data/raw/articles.json`. Fetch those articles from Strapi 5 with `?populate=splash,thumbnail,mainfile,extrafile`. Verify each returns a media object. Also check apps with non-null `image` in `data/raw/apps.json` via `?populate=image`.
 

@@ -3,7 +3,7 @@
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 0.3.0 ([Changelog](CHANGELOG.md))
+**Version:** 0.4.0 ([Changelog](CHANGELOG.md))
 
 ---
 

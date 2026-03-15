@@ -273,14 +273,19 @@ A thin wrapper around `fetch` for GraphQL queries:
 
 ```javascript
 export class GraphQLClient {
-  constructor(endpoint) {
+  constructor(endpoint, token = null) {
     this.endpoint = endpoint;
+    this.token = token;
   }
 
   async query(queryString, variables = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
     const response = await fetch(this.endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ query: queryString, variables })
     });
 

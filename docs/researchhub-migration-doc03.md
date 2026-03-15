@@ -111,7 +111,7 @@ For each image found, record an entry in the manifest:
     }
   ],
   "summary": {
-    "totalImages": 412,
+    "totalImages": 652,
     "splashImages": 230,
     "thumbnailImages": 225,
     "inlineImages": 182,
@@ -156,9 +156,9 @@ Scanning 250 articles for Base64 images...
   Article 2/250: recidivism-study-2023 — 1 splash + 1 thumbnail + 0 inline
   ...
 Scanning apps for Base64 images...
-  App 1/30: sentencing-dashboard — 1 image
+  App 1/15: sentencing-dashboard — 1 image
   ...
-Scan complete: 412 images found (230 splash, 225 thumbnail, 182 inline, 15 app images)
+Scan complete: 652 images found (230 splash, 225 thumbnail, 182 inline, 15 app images)
 Manifest saved to data/media/manifest.json
 ```
 
@@ -189,11 +189,11 @@ Read each entry in `data/media/manifest.json`. For each image:
 
 **Console output:**
 ```
-Decoding 412 images...
-  [1/412] violent-crime-trends-2024-splash.png — 135 KB ✓
-  [2/412] violent-crime-trends-2024-001.jpg — 188 KB ✓
+Decoding 652 images...
+  [1/652] violent-crime-trends-2024-splash.png — 135 KB ✓
+  [2/652] violent-crime-trends-2024-001.jpg — 188 KB ✓
   ...
-  [287/412] old-report-figure-003.png — 0 bytes ✗ FAILED (empty file)
+  [287/652] old-report-figure-003.png — 0 bytes ✗ FAILED (empty file)
   ...
 Decode complete: 410 succeeded, 2 failed
 Failures logged in data/media/manifest.json under "failures"
@@ -211,8 +211,8 @@ Upload every decoded file in `data/media/files/` to Strapi 5's media library.
 **Upload request format:**
 
 ```javascript
-const FormData = require('form-data');  // or use native Node 18+ FormData
-const fs = require('fs');
+import FormData from 'form-data';  // or use native Node 18+ FormData
+import fs from 'fs';
 
 const form = new FormData();
 form.append('files', fs.createReadStream(`data/media/files/${filename}`), {
@@ -236,7 +236,6 @@ const response = await fetch('http://localhost:1338/api/upload', {
 [
   {
     "id": 42,
-    "documentId": "abc123def456",
     "name": "violent-crime-trends-2024-splash.png",
     "url": "/uploads/violent-crime-trends-2024-splash.png",
     "mime": "image/png",
@@ -255,7 +254,6 @@ For each successful upload, record the mapping in `data/maps/media.json`:
     "sourceArticleId": "507f1f77bcf86cd799439011",
     "location": "splash",
     "strapi5MediaId": 42,
-    "strapi5DocumentId": "abc123def456",
     "strapi5Url": "/uploads/violent-crime-trends-2024-splash.png"
   },
   "violent-crime-trends-2024-001.jpg": {
@@ -263,7 +261,6 @@ For each successful upload, record the mapping in `data/maps/media.json`:
     "location": "inline",
     "index": 0,
     "strapi5MediaId": 43,
-    "strapi5DocumentId": "def456ghi789",
     "strapi5Url": "/uploads/violent-crime-trends-2024-001.jpg"
   }
 }
@@ -346,7 +343,7 @@ Apply the field map from `config/field-map.json` to rename/convert any other fie
 - `updatedAt` → `_originalUpdatedAt` (same)
 - `thumbnail` → media ID (same processing as splash — extract Base64, upload, replace with Strapi 5 media ID)
 - `mainfile` / `extrafile` → preserve media references for download+reupload (same pattern as dataset `datafile`)
-- Relation fields (`datasets`, `apps`) → preserve the array of related IDs as `_relatedDatasetIds` and `_relatedAppIds` for Phase 4 relation linking
+- Relation fields (`datasets`) → preserve the array of related IDs as `_relatedDatasetIds` for Phase 4 relation linking
 
 **5. Write transformed articles.**
 
@@ -376,8 +373,7 @@ Apply the field map from `config/field-map.json` to rename/convert any other fie
     "extrafile": null,
     "_originalCreatedAt": "2024-03-15T10:30:00.000Z",
     "_originalUpdatedAt": "2024-06-01T14:22:00.000Z",
-    "_relatedDatasetIds": ["60b8d295f1d2c72a4c9e1234", "60b8d295f1d2c72a4c9e5678"],
-    "_relatedAppIds": ["60b8d295f1d2c72a4c9eabcd"]
+    "_relatedDatasetIds": ["60b8d295f1d2c72a4c9e1234", "60b8d295f1d2c72a4c9e5678"]
   }
 ]
 ```
@@ -418,7 +414,7 @@ For each dataset in `data/raw/datasets.json`:
 
 **Article media files (mainfile/extrafile):**
 
-For each article in `data/raw/articles.json`:
+Read `data/transformed/articles.json` (output from Step 3d). For each article:
 
 1. Check if `mainfile` and/or `extrafile` fields are non-null and contain a media reference with a `url`.
 2. Download each file from Strapi 3: `GET http://localhost:1337{mainfile.url}` (same pattern as dataset datafile).
@@ -658,7 +654,7 @@ Export functions:
 
 Detection rules:
 - String fields (splash, thumbnail, app image): field starts with `data:image/` OR is a raw Base64 string (check if it decodes to valid image magic bytes)
-- Markdown: regex `!/\[([^\]]*)\]\(data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)\)/g`
+- Markdown: regex `/!\[([^\]]*)\]\(data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)\)/g`
 - HTML: regex `/<img[^>]+src="data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)"[^>]*>/g`
 
 #### `lib/base64-decoder.js`
@@ -710,7 +706,7 @@ Export functions:
   - Map `id` → `legacyId`
   - Preserve `createdAt`/`updatedAt` as `_originalCreatedAt`/`_originalUpdatedAt`
   - Preserve all other fields: title, status, slug, date, external, categories, tags, authors, images, abstract, mainfiletype, funding, citation, doi, hideFromBanner
-  - Preserve relation IDs as `_relatedDatasetIds` and `_relatedAppIds` (arrays of Strapi 3 ObjectId strings)
+  - Preserve relation IDs as `_relatedDatasetIds` (array of Strapi 3 ObjectId strings)
 - After all rewrites, scan all `markdown` fields for `data:image/` remnants and warn
 - Save to `data/transformed/articles.json`
 
@@ -729,7 +725,7 @@ Handles datasets, article media files, and apps:
 - Save to `data/transformed/datasets.json`
 
 **Article media files:**
-- Read `data/raw/articles.json`
+- Read `data/transformed/articles.json` (output from Step 3d)
 - For each article with non-null `mainfile` and/or `extrafile`:
   - Download each file from `http://localhost:1337{mainfile.url}` / `{extrafile.url}`
   - Save to `data/media/files/{original-filename}`

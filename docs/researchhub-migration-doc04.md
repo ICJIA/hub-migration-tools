@@ -55,6 +55,8 @@ Load all transformed content into Strapi 5 via the REST API in the correct depen
 
 **Script:** `scripts/04-load.js`
 
+> **Note on publish state:** All content type schemas set `draftAndPublish: false`. Verify during Phase 1 that entries created via the API are immediately visible at the public REST endpoint. If Strapi 5 requires entries to be explicitly published even with `draftAndPublish: false`, the POST payloads will need to include `publishedAt` with a timestamp value.
+
 Datasets go first because they have no outbound dominant relations — only media (`datafile`), which was already uploaded in Phase 3. The `datafile` field in the transformed data is already a Strapi 5 media ID.
 
 For each dataset in `data/transformed/datasets.json`:
@@ -301,6 +303,13 @@ All relations linked: 250 articles + 15 apps processed, 1 total warning
 After all content is loaded via the API, directly update the SQLite database to restore original `createdAt` and `updatedAt` values.
 
 **1. Stop Strapi 5** (or at minimum, ensure no writes are happening). The SQLite file should not be written to by two processes simultaneously.
+
+> **Important — column and table name verification:** Before running any SQL queries, verify actual names with:
+> ```sql
+> SELECT name FROM sqlite_master WHERE type='table';
+> PRAGMA table_info(articles);  -- or whatever the actual table name is
+> ```
+> Strapi 5 typically uses plural table names (e.g., `articles`, `datasets`, `apps`) from the schema's `pluralName`, and snake_case column names (e.g., `legacy_id` for `legacyId`, `document_id` for `documentId`, `created_at`/`updated_at`). The examples in this document use the expected names but they MUST be verified against the actual database before running migration scripts.
 
 **2. Open the SQLite database:**
 
@@ -580,7 +589,7 @@ Loads all content in dependency order:
 - POST to `/api/articles` with `{ data: { legacyId, title, status, slug, date, external, categories, tags, authors, splash, thumbnail, images, abstract, markdown, mainfiletype, funding, citation, doi, mainfile, extrafile, hideFromBanner } }`
 - `splash`, `thumbnail`, `mainfile`, `extrafile` are integer media IDs; content field is `markdown` (NOT body)
 - Do NOT include `datasets` or `apps` relations yet — those are linked in the next script
-- Do NOT include `_relatedDatasetIds`, `_relatedAppIds`, or `_original*` fields
+- Do NOT include `_relatedDatasetIds` or `_original*` fields
 - Save map to `data/maps/articles.json`
 
 Log progress throughout: "Loading apps: 1/15... 2/15... done. Loading datasets: 1/42..."
@@ -628,6 +637,7 @@ Restores original timestamps via SQLite:
 - Native fetch (Node 18+)
 - fs/promises for file I/O
 - `better-sqlite3` for SQLite access (add to package.json dependencies)
+- Add a configurable delay between API requests (default 100ms) to prevent overwhelming Strapi 5
 - All scripts runnable individually: `node scripts/04-load.js`, `node scripts/04b-link-relations.js`, `node scripts/04c-fix-timestamps.js`
 - Idempotent: all scripts safe to re-run (duplicate detection via legacyId, connect relations are additive)
 - Fields prefixed with `_` are metadata — never send them to the Strapi 5 API
