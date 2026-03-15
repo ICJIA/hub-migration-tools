@@ -34,7 +34,7 @@ npm install
 Required for Phase 1c schema verification:
 
 ```bash
-pnpm add @strapi/plugin-graphql
+npm install @strapi/plugin-graphql
 ```
 
 ## 3. Copy Generated Schemas
@@ -45,21 +45,33 @@ After running Phase 1 (`pnpm migrate:phase01`), copy the generated schemas:
 cp -r /path/to/hub-cms-migration-2026/migration/output/strapi5-schemas/* ./src/api/
 ```
 
-## 4. Start in Development Mode
+## 4. Set the Port
+
+Strapi defaults to port 1337, which conflicts with Strapi 3. Set Strapi 5 to port **1338** (matching the migration config defaults):
+
+Edit `.env` in the Strapi 5 project root:
+
+```
+PORT=1338
+```
+
+> **Note:** If you prefer a different port, update the Strapi 5 URLs in your migration `config.js` (or `config.dev.js`) accordingly.
+
+## 5. Start in Development Mode
 
 Start Strapi 5 to auto-create the database tables from the schemas:
 
 ```bash
-pnpm develop
+npm run develop
 ```
 
-Watch the console for schema errors. Once you see "Welcome back!", the tables are created.
+Watch the console for schema errors. Once you see "Welcome back!", the tables are created. Admin panel: `http://localhost:1338/admin`
 
-## 5. Create an Admin User
+## 6. Create an Admin User
 
 Open `http://localhost:1338/admin` and create an admin account.
 
-## 6. Create a Full-Access API Token
+## 7. Create a Full-Access API Token
 
 1. Go to **Settings → API Tokens → Create new API Token**
 2. Name: `migration`
@@ -76,7 +88,7 @@ export STRAPI5_TOKEN="your-token-here"
 # Edit config.js and set strapi5.token
 ```
 
-## 7. Configure API Permissions (Public Access)
+## 8. Configure API Permissions (Public Access)
 
 If you want the REST API to be publicly readable after migration:
 
@@ -91,7 +103,7 @@ If you want the REST API to be publicly readable after migration:
 Install PM2 and create an ecosystem file:
 
 ```bash
-pnpm add -g pm2
+npm install -g pm2
 ```
 
 Create `ecosystem.config.cjs` in the Strapi 5 project root:
@@ -102,7 +114,7 @@ module.exports = {
     {
       name: 'strapi5-researchhub',
       cwd: '/home/forge/researchhub2.icjia-api.cloud',
-      script: 'pnpm',
+      script: 'npm',
       args: 'start',
       env: {
         NODE_ENV: 'production',
@@ -171,11 +183,11 @@ If using Laravel Forge to manage the server:
 
 1. **Create a new site** for `researchhub2.icjia-api.cloud`
 2. **Set the web directory** to `/` (not `/public`)
-3. **Deploy script:** `cd /home/forge/researchhub2.icjia-api.cloud && pnpm install && pnpm build && pm2 restart strapi5-researchhub`
+3. **Deploy script:** `cd /home/forge/researchhub2.icjia-api.cloud && npm install && npm run build && pm2 restart strapi5-researchhub`
 4. **SSL:** Use Forge's built-in Let's Encrypt integration
 5. **Nginx config:** Forge auto-generates the config. Override the location block with the proxy config above via Forge's "Edit Nginx Configuration" feature.
 
-## 8. Update Migration Config
+## 9. Update Migration Config
 
 Once the Strapi 5 instance is running in production, update the migration config:
 
@@ -196,7 +208,7 @@ strapi5: {
 },
 ```
 
-## 9. Verify
+## 10. Verify
 
 Run Phase 1c verification against the production instance:
 

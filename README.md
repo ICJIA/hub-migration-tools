@@ -96,7 +96,7 @@ The actual Strapi 3 model schemas are stored in [`schemas/`](schemas/) for refer
 
 - Node.js 18+ (see `.nvmrc` — project targets Node 22)
 - pnpm (`npm install -g pnpm` if not already installed)
-- A fresh Strapi 5 project (`npx create-strapi@latest`) for Phase 1c onward
+- A fresh Strapi 5 project (`npx create-strapi@latest`) — use **npm** (not pnpm) for the Strapi 5 install due to native module compatibility. See [Strapi 5 Setup Guide](docs/STRAPI5-SETUP.md).
 - `@strapi/plugin-graphql` installed in the Strapi 5 project (for schema verification)
 
 ### Configuration
@@ -172,7 +172,7 @@ node migration/scripts/01b-generate-schemas.js
 cp -r migration/output/strapi5-schemas/* /path/to/strapi5-project/src/api/
 
 # Step 4: Start Strapi 5 in dev mode (it reads schemas and creates tables)
-cd /path/to/strapi5-project && pnpm develop
+cd /path/to/strapi5-project && npm run develop
 
 # Step 5: Verify schemas were applied correctly (Strapi 5 must be running)
 node migration/scripts/01c-verify-schemas.js
