@@ -8,13 +8,23 @@ On your server (or locally for development):
 
 ```bash
 npx create-strapi@latest strapi5-researchhub
-cd strapi5-researchhub
 ```
 
-Choose:
-- **Database:** SQLite (default)
-- **TypeScript:** No (JavaScript)
-- **Package manager:** pnpm
+The installer will ask several questions:
+
+| Prompt | Answer |
+|---|---|
+| Ok to proceed? | **y** |
+| Use TypeScript? | **No** (JavaScript) |
+| Install dependencies with npm? | **No** — we'll use pnpm |
+| Initialize a git repository? | Your choice (yes if standalone, no if part of a larger repo) |
+
+Then install with pnpm:
+
+```bash
+cd strapi5-researchhub
+pnpm install
+```
 
 ## 2. Install the GraphQL Plugin
 
