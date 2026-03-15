@@ -9,6 +9,12 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [0.8.1] - 2026-03-15
+
+### Fixed
+- README: .docx executive summary now uses a raw GitHub download link instead of an internal link that GitHub can't render
+- README: replaced generic "not yet implemented" with detailed Phase 2–5 descriptions (scripts, commands, outputs)
+
 ## [0.8.0] - 2026-03-15
 
 ### Added
