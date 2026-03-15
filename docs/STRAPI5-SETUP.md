@@ -106,7 +106,7 @@ Install PM2 and create an ecosystem file:
 npm install -g pm2
 ```
 
-Create `ecosystem.config.cjs` in the Strapi 5 project root:
+Copy the ecosystem config from the migration project's `deploy/` directory to the Strapi 5 project root on the server, or create it:
 
 ```javascript
 module.exports = {
