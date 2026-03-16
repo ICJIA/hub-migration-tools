@@ -390,3 +390,29 @@ Forge's `site.conf` is included inside a `server {}` block. If you accidentally 
 **Cause:** Running Strapi in development mode (`NODE_ENV=development`) uses Vite's dev server, which blocks unknown hostnames behind a proxy.
 
 **Fix:** Run in production mode. Set `NODE_ENV: 'production'` in the PM2 ecosystem config and run `npm run build` before starting.
+
+### You do NOT need custom Strapi config files
+
+When debugging the 403 issue, you may have tried adding custom `config/admin.js`, `config/middlewares.js`, or `src/admin/vite.config.js`. **None of these were the fix** — the problem was entirely in Nginx.
+
+The only Strapi config you need to customize for production behind a proxy is `config/server.js`:
+
+```javascript
+module.exports = ({ env }) => ({
+  host: env('HOST', '0.0.0.0'),
+  port: env.int('PORT', 1337),
+  url: 'https://v2.hub.icjia-api.cloud',
+});
+```
+
+The `url` tells Strapi its public-facing address so it generates correct paths for uploads, media URLs, and API responses. Everything else (`admin.js`, `middlewares.js`, `vite.config.js`) should be left at Strapi's defaults.
+
+If you added custom config files while debugging, clean them up:
+
+```bash
+cd /home/forge/v2.hub.icjia-api.cloud/v2hub
+rm -f src/admin/vite.config.js
+# Reset admin.js and middlewares.js to defaults (or delete if you created them)
+npm run build
+pm2 restart strapi5-researchhub
+```
