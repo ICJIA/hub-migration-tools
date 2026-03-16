@@ -113,13 +113,13 @@
 
   <!-- Stats on the right -->
   <g transform="translate(750, 130)">
-    <text x="0" y="0" font-family="ui-monospace, monospace" font-size="64" font-weight="700" fill="#e6edf3">295</text>
+    <text x="0" y="0" font-family="ui-monospace, monospace" font-size="64" font-weight="700" fill="#e6edf3">275</text>
     <text x="0" y="30" font-family="system-ui, sans-serif" font-size="16" fill="#6e7681">records migrated</text>
 
-    <text x="0" y="90" font-family="ui-monospace, monospace" font-size="64" font-weight="700" fill="#e6edf3">1,331</text>
+    <text x="0" y="90" font-family="ui-monospace, monospace" font-size="64" font-weight="700" fill="#e6edf3">1,287</text>
     <text x="0" y="120" font-family="system-ui, sans-serif" font-size="16" fill="#6e7681">media files transferred</text>
 
-    <text x="0" y="180" font-family="ui-monospace, monospace" font-size="64" font-weight="700" fill="#e6edf3">6,877</text>
+    <text x="0" y="180" font-family="ui-monospace, monospace" font-size="64" font-weight="700" fill="#e6edf3">6,431</text>
     <text x="0" y="210" font-family="system-ui, sans-serif" font-size="16" fill="#6e7681">fields audited</text>
 
     <text x="0" y="270" font-family="ui-monospace, monospace" font-size="64" font-weight="700" fill="#50b87a">0</text>
