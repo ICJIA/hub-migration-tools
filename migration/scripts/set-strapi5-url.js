@@ -3,7 +3,7 @@
  * @description Interactive script to update the Strapi 5 API URL and token
  * across all config files in one step.
  *
- * Prompts for the Strapi 5 URL (e.g., https://researchhubv2.icjia-api.cloud)
+ * Prompts for the Strapi 5 URL (e.g., https://v2.hub.icjia-api.cloud)
  * and optionally the API token, then updates config.js automatically.
  *
  * @example

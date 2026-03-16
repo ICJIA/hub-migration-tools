@@ -5,7 +5,7 @@ Step-by-step instructions for deploying Strapi 5 on a DigitalOcean droplet and r
 ## Prerequisites
 
 - A DigitalOcean droplet (Ubuntu 22.04+ recommended) with SSH access
-- DNS A record pointing `v2.researchhub.icjia-api.cloud` to the droplet IP
+- DNS A record pointing `v2.hub.icjia-api.cloud` to the droplet IP
 - Let's Encrypt SSL certificate already provisioned
 - Node.js 22+ installed on the server
 - This migration repo cloned on your local machine (tested locally first)
@@ -22,9 +22,9 @@ Create the Strapi 5 project:
 
 ```bash
 cd /home/forge
-npx create-strapi@latest v2.researchhub.icjia-api.cloud
+npx create-strapi@latest v2.hub.icjia-api.cloud
 # TypeScript? No | Install with npm? Yes | Init git? Yes
-cd v2.researchhub.icjia-api.cloud
+cd v2.hub.icjia-api.cloud
 ```
 
 Install the GraphQL plugin:
@@ -49,7 +49,7 @@ module.exports = {
   apps: [
     {
       name: 'strapi5-researchhub',
-      cwd: '/home/forge/v2.researchhub.icjia-api.cloud',
+      cwd: '/home/forge/v2.hub.icjia-api.cloud',
       script: 'npm',
       args: 'start',
       env: {
@@ -94,13 +94,13 @@ curl http://localhost:1337
 Create the site config:
 
 ```bash
-sudo tee /etc/nginx/sites-available/v2.researchhub.icjia-api.cloud << 'EOF'
+sudo tee /etc/nginx/sites-available/v2.hub.icjia-api.cloud << 'EOF'
 server {
     listen 443 ssl http2;
-    server_name v2.researchhub.icjia-api.cloud;
+    server_name v2.hub.icjia-api.cloud;
 
-    ssl_certificate /etc/letsencrypt/live/v2.researchhub.icjia-api.cloud/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/v2.researchhub.icjia-api.cloud/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/v2.hub.icjia-api.cloud/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/v2.hub.icjia-api.cloud/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:1337;
@@ -122,7 +122,7 @@ server {
 
 server {
     listen 80;
-    server_name v2.researchhub.icjia-api.cloud;
+    server_name v2.hub.icjia-api.cloud;
     return 301 https://$host$request_uri;
 }
 EOF
@@ -131,7 +131,7 @@ EOF
 Enable and test:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/v2.researchhub.icjia-api.cloud /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/v2.hub.icjia-api.cloud /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -139,12 +139,12 @@ sudo systemctl reload nginx
 Verify from your local machine:
 
 ```bash
-curl https://v2.researchhub.icjia-api.cloud
+curl https://v2.hub.icjia-api.cloud
 ```
 
 ## 4. Create Admin User + API Token
 
-1. Open `https://v2.researchhub.icjia-api.cloud/admin` in your browser
+1. Open `https://v2.hub.icjia-api.cloud/admin` in your browser
 2. Create the first admin user
 3. Go to **Settings → API Tokens → Create new API Token**
 4. Name: `migration`, Type: **Full access**, Save and copy the token
@@ -154,13 +154,13 @@ curl https://v2.researchhub.icjia-api.cloud
 On your local machine, the schemas were already generated during local testing. Copy them to the server:
 
 ```bash
-scp -r migration/output/strapi5-schemas/* forge@your-droplet-ip:/home/forge/v2.researchhub.icjia-api.cloud/src/api/
+scp -r migration/output/strapi5-schemas/* forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/src/api/
 ```
 
 Then restart Strapi 5 on the server to pick up the schemas:
 
 ```bash
-ssh forge@your-droplet-ip "cd /home/forge/v2.researchhub.icjia-api.cloud && npm run build && pm2 restart strapi5-researchhub"
+ssh forge@your-droplet-ip "cd /home/forge/v2.hub.icjia-api.cloud && npm run build && pm2 restart strapi5-researchhub"
 ```
 
 ## 6. Run the Production Migration
@@ -173,7 +173,7 @@ cd hub-cms-migration-2026
 # Point at production
 cp config.prod.js config.js
 pnpm set-strapi5
-# URL: https://v2.researchhub.icjia-api.cloud
+# URL: https://v2.hub.icjia-api.cloud
 # Token: (paste your production token)
 
 # Clean any local test data
@@ -200,7 +200,7 @@ scp -r . forge@your-droplet-ip:/home/forge/hub-cms-migration-2026/
 ssh forge@your-droplet-ip
 cd /home/forge/hub-cms-migration-2026
 npm install    # need better-sqlite3 compiled on the server
-export STRAPI5_DB_PATH="/home/forge/v2.researchhub.icjia-api.cloud/.tmp/data.db"
+export STRAPI5_DB_PATH="/home/forge/v2.hub.icjia-api.cloud/.tmp/data.db"
 pm2 stop strapi5-researchhub
 node migration/scripts/04c-fix-timestamps.js
 pm2 start strapi5-researchhub
@@ -213,13 +213,13 @@ pm2 start strapi5-researchhub
 ssh forge@your-droplet-ip "pm2 stop strapi5-researchhub"
 
 # Download
-scp forge@your-droplet-ip:/home/forge/v2.researchhub.icjia-api.cloud/.tmp/data.db ./data.db.remote
+scp forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/.tmp/data.db ./data.db.remote
 
 # Fix locally
 STRAPI5_DB_PATH=./data.db.remote node migration/scripts/04c-fix-timestamps.js
 
 # Upload back
-scp ./data.db.remote forge@your-droplet-ip:/home/forge/v2.researchhub.icjia-api.cloud/.tmp/data.db
+scp ./data.db.remote forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/.tmp/data.db
 
 # Restart
 ssh forge@your-droplet-ip "pm2 start strapi5-researchhub"
@@ -234,7 +234,7 @@ pnpm migrate:phase06    # parity audit
 
 ## 7. Post-Migration
 
-- [ ] Verify `https://v2.researchhub.icjia-api.cloud/admin` — browse content
+- [ ] Verify `https://v2.hub.icjia-api.cloud/admin` — browse content
 - [ ] Set "Entry title" to `title` for all content types (if not auto-set)
 - [ ] Configure public API permissions: Settings → Roles → Public → enable `find`/`findOne` for each type
 - [ ] Back up the SQLite database: `cp .tmp/data.db .tmp/data.db.bak`
@@ -266,7 +266,7 @@ If you need to start the production migration from scratch:
 ```bash
 ssh forge@your-droplet-ip
 pm2 stop strapi5-researchhub
-rm /home/forge/v2.researchhub.icjia-api.cloud/.tmp/data.db
+rm /home/forge/v2.hub.icjia-api.cloud/.tmp/data.db
 pm2 start strapi5-researchhub
 # Create new admin user + API token, then re-run migration from local machine
 ```

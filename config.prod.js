@@ -21,14 +21,14 @@ export default {
   },
 
   strapi5: {
-    graphqlUrl: process.env.STRAPI5_GRAPHQL_URL || 'https://v2.researchhub.icjia-api.cloud/graphql',
-    apiUrl: process.env.STRAPI5_API_URL || 'https://v2.researchhub.icjia-api.cloud',
+    graphqlUrl: process.env.STRAPI5_GRAPHQL_URL || 'https://v2.hub.icjia-api.cloud/graphql',
+    apiUrl: process.env.STRAPI5_API_URL || 'https://v2.hub.icjia-api.cloud',
     token: process.env.STRAPI5_TOKEN || '',  // REQUIRED — create in Strapi 5 admin → Settings → API Tokens
     dbPath: process.env.STRAPI5_DB_PATH || '../strapi5-researchhub/.tmp/data.db',  // For production: set via env var or pnpm set-strapi5
   },
 
   strapi3ProjectPath: '../strapi3-project',
-  strapi5ProjectPath: process.env.STRAPI5_PROJECT_PATH || '/home/forge/researchhub2.icjia-api.cloud',
+  strapi5ProjectPath: process.env.STRAPI5_PROJECT_PATH || '/home/forge/v2.hub.icjia-api.cloud',
   contentTypes: ['article', 'dataset', 'app'],
 
   paths: {

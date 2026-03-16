@@ -8,7 +8,7 @@ module.exports = {
   apps: [
     {
       name: 'strapi5-researchhub',
-      cwd: '/home/forge/v2.researchhub.icjia-api.cloud',
+      cwd: '/home/forge/v2.hub.icjia-api.cloud',
       script: 'npm',
       args: 'start',
       env: {

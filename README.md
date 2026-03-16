@@ -101,7 +101,7 @@ graph TB
 
     subgraph "Cloud (DigitalOcean)"
         S3[Strapi 3<br/>researchhub.icjia-api.cloud]
-        S5P[Strapi 5<br/>v2.researchhub.icjia-api.cloud]
+        S5P[Strapi 5<br/>v2.hub.icjia-api.cloud]
         NX[Nginx :443 → :1337]
         PM[PM2]
         PM --> S5P
@@ -220,7 +220,7 @@ Your Mac                    Cloud
 │                   │        └──────────────────────────────────┘
 │  pnpm migrate:*   │
 │                   │        ┌──────────────────────────────────┐
-│                   │ ─REST─▶│  Strapi 5 (v2.researchhub.icjia-│
+│                   │ ─REST─▶│  Strapi 5 (v2.hub.icjia-        │
 │                   │        │  api.cloud) — write via API      │
 └──────────────────┘        └──────────────────────────────────┘
 ```
@@ -244,7 +244,7 @@ Your Mac                    Cloud
 # Point at production
 cp config.prod.js config.js
 pnpm set-strapi5
-# URL: https://v2.researchhub.icjia-api.cloud
+# URL: https://v2.hub.icjia-api.cloud
 # Token: (your production API token)
 
 # Clean local test data
@@ -271,7 +271,7 @@ cd /home/forge && git clone https://github.com/ICJIA/hub-cms-migration-2026.git
 cd hub-cms-migration-2026 && npm install
 
 # Run just the timestamp script
-export STRAPI5_DB_PATH="/home/forge/v2.researchhub.icjia-api.cloud/.tmp/data.db"
+export STRAPI5_DB_PATH="/home/forge/v2.hub.icjia-api.cloud/.tmp/data.db"
 node migration/scripts/04c-fix-timestamps.js
 
 # Restart and exit
@@ -358,7 +358,7 @@ Extracting datasets... ✓ 35 datasets saved
 Extracting apps... ✓ 14 apps saved
 
 Verifying counts against Strapi 3 REST endpoints...
-  ✓ articles: 246 = 246 | ✓ datasets: 35 = 35 | ✓ apps: 14 = 14
+  ✓ articles: 246 = 246 | ✓ datasets: 35 = 35 | ✓ apps: 14 = 14p
 
 === Verification ===
   ✓ article mainfile refs: 203/203 valid (43 null)
@@ -521,7 +521,7 @@ All scripts read from `config.js` at the project root (gitignored — may contai
 | Profile | Strapi 3 | Strapi 5 | Use case |
 |---|---|---|---|
 | `config.dev.js` | `researchhub.icjia-api.cloud` (remote) | `localhost:1338` (local) | Development testing |
-| `config.prod.js` | `researchhub.icjia-api.cloud` (remote) | `researchhubv2.icjia-api.cloud` (remote) | Production migration |
+| `config.prod.js` | `researchhub.icjia-api.cloud` (remote) | `v2.hub.icjia-api.cloud` (remote) | Production migration |
 
 ```bash
 cp config.dev.js config.js          # local testing

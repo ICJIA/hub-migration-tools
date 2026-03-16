@@ -24,10 +24,10 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 - **DigitalOcean Deployment Guide** (`docs/DIGITALOCEAN-DEPLOY.md`) — complete production deployment
   walkthrough: Strapi 5 install, PM2, Nginx reverse proxy, SSL, schema copy, remote timestamp fix,
   post-migration checklist, ongoing sync
-- `deploy/nginx-strapi5.conf` — Nginx config for `v2.researchhub.icjia-api.cloud` → localhost:1337
+- `deploy/nginx-strapi5.conf` — Nginx config for `v2.hub.icjia-api.cloud` → localhost:1337
   with 200MB upload limit and 5-minute timeouts
 - `deploy/ecosystem.config.cjs` — PM2 process manager config for production Strapi 5
-- Production URL set to `https://v2.researchhub.icjia-api.cloud` in `config.prod.js`
+- Production URL set to `https://v2.hub.icjia-api.cloud` in `config.prod.js`
 - README: production deployment section with deploy directory links
 
 ## [3.0.0] - 2026-03-15
@@ -120,7 +120,7 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 - Native module compilation: npm install for better-sqlite3 in migration project
 
 ### Changed
-- Production Strapi 5 URL updated to `researchhubv2.icjia-api.cloud`
+- Production Strapi 5 URL updated to `v2.hub.icjia-api.cloud`
 
 ### Results
 - Local migration completed successfully against production Strapi 3
@@ -135,7 +135,7 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Added
 - Environment profiles for dev vs production migration:
   - `config.dev.js` — remote Strapi 3 + local Strapi 5 (localhost:1338)
-  - `config.prod.js` — remote Strapi 3 + remote Strapi 5 (researchhub2.icjia-api.cloud)
+  - `config.prod.js` — remote Strapi 3 + remote Strapi 5 (v2.hub.icjia-api.cloud)
   - `MIGRATION_ENV` environment variable support (e.g., `MIGRATION_ENV=prod`)
 - `migration/lib/load-config.js` — shared config loader with profile resolution
 - All 17 scripts now use the shared `loadConfig()` for consistent config handling

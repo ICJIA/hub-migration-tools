@@ -113,7 +113,7 @@ module.exports = {
   apps: [
     {
       name: 'strapi5-researchhub',
-      cwd: '/home/forge/researchhub2.icjia-api.cloud',
+      cwd: '/home/forge/v2.hub.icjia-api.cloud',
       script: 'npm',
       args: 'start',
       env: {
@@ -140,12 +140,12 @@ pm2 startup  # auto-start on reboot
 
 ### Nginx Reverse Proxy
 
-Create `/etc/nginx/sites-available/researchhub2.icjia-api.cloud`:
+Create `/etc/nginx/sites-available/v2.hub.icjia-api.cloud`:
 
 ```nginx
 server {
     listen 80;
-    server_name researchhub2.icjia-api.cloud;
+    server_name v2.hub.icjia-api.cloud;
 
     location / {
         proxy_pass http://127.0.0.1:1338;
@@ -169,21 +169,21 @@ server {
 Enable the site and add SSL:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/researchhub2.icjia-api.cloud /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/v2.hub.icjia-api.cloud /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 
 # Add SSL with Let's Encrypt (if using Certbot)
-sudo certbot --nginx -d researchhub2.icjia-api.cloud
+sudo certbot --nginx -d v2.hub.icjia-api.cloud
 ```
 
 ### Laravel Forge
 
 If using Laravel Forge to manage the server:
 
-1. **Create a new site** for `researchhub2.icjia-api.cloud`
+1. **Create a new site** for `v2.hub.icjia-api.cloud`
 2. **Set the web directory** to `/` (not `/public`)
-3. **Deploy script:** `cd /home/forge/researchhub2.icjia-api.cloud && npm install && npm run build && pm2 restart strapi5-researchhub`
+3. **Deploy script:** `cd /home/forge/v2.hub.icjia-api.cloud && npm install && npm run build && pm2 restart strapi5-researchhub`
 4. **SSL:** Use Forge's built-in Let's Encrypt integration
 5. **Nginx config:** Forge auto-generates the config. Override the location block with the proxy config above via Forge's "Edit Nginx Configuration" feature.
 
@@ -193,8 +193,8 @@ Once the Strapi 5 instance is running in production, update the migration config
 
 ```bash
 # In your migration project
-export STRAPI5_API_URL="https://researchhub2.icjia-api.cloud"
-export STRAPI5_GRAPHQL_URL="https://researchhub2.icjia-api.cloud/graphql"
+export STRAPI5_API_URL="https://v2.hub.icjia-api.cloud"
+export STRAPI5_GRAPHQL_URL="https://v2.hub.icjia-api.cloud/graphql"
 export STRAPI5_TOKEN="your-production-token"
 ```
 
@@ -202,8 +202,8 @@ Or edit `config.js`:
 
 ```javascript
 strapi5: {
-  graphqlUrl: 'https://researchhub2.icjia-api.cloud/graphql',
-  apiUrl: 'https://researchhub2.icjia-api.cloud',
+  graphqlUrl: 'https://v2.hub.icjia-api.cloud/graphql',
+  apiUrl: 'https://v2.hub.icjia-api.cloud',
   token: 'your-production-token',
 },
 ```
@@ -239,7 +239,7 @@ The SQLite database is typically at:
 Set this path in the migration config:
 
 ```bash
-export STRAPI5_DB_PATH="/home/forge/researchhub2.icjia-api.cloud/.tmp/data.db"
+export STRAPI5_DB_PATH="/home/forge/v2.hub.icjia-api.cloud/.tmp/data.db"
 ```
 
 ## Resetting Strapi 5 for a Fresh Migration
@@ -276,7 +276,7 @@ ssh forge@your-droplet-ip
 pm2 stop strapi5-researchhub
 
 # Delete the database
-rm /home/forge/researchhubv2.icjia-api.cloud/.tmp/data.db
+rm /home/forge/v2.hub.icjia-api.cloud/.tmp/data.db
 
 # Restart — recreates the DB
 pm2 start strapi5-researchhub

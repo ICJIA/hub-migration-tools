@@ -22,7 +22,7 @@
  *
  * Profiles:
  *   config.dev.js  — Strapi 3 remote (researchhub.icjia-api.cloud) + Strapi 5 local (localhost:1338)
- *   config.prod.js — Strapi 3 remote + Strapi 5 remote (researchhub2.icjia-api.cloud)
+ *   config.prod.js — Strapi 3 remote + Strapi 5 remote (v2.hub.icjia-api.cloud)
  */
 
 export default {
