@@ -54,13 +54,6 @@ module.exports = {
       args: 'start',
       env: {
         NODE_ENV: 'production',
-        HOST: '0.0.0.0',
-        PORT: 1337,
-        APP_KEYS: 'replace-with-your-app-key-1,replace-with-your-app-key-2',
-        API_TOKEN_SALT: 'replace-with-your-api-token-salt',
-        ADMIN_JWT_SECRET: 'replace-with-your-admin-jwt-secret',
-        JWT_SECRET: 'replace-with-your-jwt-secret',
-        DATABASE_FILENAME: '.tmp/data.db',
       },
       max_memory_restart: '512M',
       autorestart: true,
@@ -71,7 +64,7 @@ module.exports = {
 EOF
 ```
 
-> **Important:** Replace the `APP_KEYS`, `API_TOKEN_SALT`, `ADMIN_JWT_SECRET`, and `JWT_SECRET` values with the ones from your Strapi 5 `.env` file. You can generate new ones with `openssl rand -base64 32`.
+> **Note:** Strapi reads `APP_KEYS`, `API_TOKEN_SALT`, `ADMIN_JWT_SECRET`, `JWT_SECRET`, `HOST`, `PORT`, and `DATABASE_FILENAME` from the `.env` file that was auto-generated during `npx create-strapi@latest`. You don't need to duplicate them in the ecosystem config — PM2 just needs to start the process and Strapi handles the rest from `.env`.
 
 Start with PM2:
 
