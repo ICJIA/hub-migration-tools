@@ -16,7 +16,7 @@ module.exports = {
       script: 'npm',
       args: 'start',
       env: {
-        NODE_ENV: 'production',
+        NODE_ENV: 'development',  // Change to 'production' when ready to go live
       },
       max_memory_restart: '512M',
       autorestart: true,
