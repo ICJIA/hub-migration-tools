@@ -7,7 +7,7 @@ A complete, automated migration tool for converting a legacy Strapi 3 (MongoDB) 
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 4.0.0 ([Changelog](CHANGELOG.md))
+**Version:** 4.0.1 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -35,9 +35,9 @@ ResearchHub is ICJIA's platform for publishing research articles, datasets, and 
 
 | Content Type | Count | Key Challenges |
 |---|---|---|
-| Articles | ~236 | `splash` + `thumbnail` (Base64 images), inline/reference-style images in `markdown`, `mainfile`/`extrafile` (upload plugin), 2 m2m relations |
-| Datasets | ~26 | `datafile` (upload plugin), multiple JSON metadata fields, 2 m2m relations |
-| Apps | ~13 | `image` (Base64), 2 dominant m2m relations to articles and datasets |
+| Articles | 236 | `splash` + `thumbnail` (Base64 images), inline/reference-style images in `markdown`, `mainfile`/`extrafile` (upload plugin), 2 m2m relations |
+| Datasets | 26 | `datafile` (upload plugin), multiple JSON metadata fields, 2 m2m relations |
+| Apps | 13 | `image` (Base64), 2 dominant m2m relations to articles and datasets |
 
 > **Note:** Only records with `published` or `archived` status are migrated. Draft and pending-approval records are excluded and can be migrated individually once published. See `allowedStatuses` in config.
 
@@ -47,8 +47,8 @@ All three content types are interconnected:
 
 ```mermaid
 graph LR
-    A[Article<br/>~246 records] -->|m2m<br/>article dominant| D[Dataset<br/>~35 records]
-    AP[App<br/>~14 records] -->|m2m<br/>app dominant| A
+    A[Article<br/>236 records] -->|m2m<br/>article dominant| D[Dataset<br/>26 records]
+    AP[App<br/>13 records] -->|m2m<br/>app dominant| A
     AP -->|m2m<br/>app dominant| D
 
     style A fill:#4a90d9,stroke:#2c5f8a,color:#fff
@@ -345,19 +345,19 @@ node migration/scripts/02-verify.js      # verify counts and integrity
 <summary>Example CLI output</summary>
 
 ```console
-Extracting articles... page 1 — 100 | page 2 — 200 | page 3 — 246
-  ✓ 246 articles saved
-Extracting datasets... ✓ 35 datasets saved
-Extracting apps... ✓ 14 apps saved
+Extracting articles... page 1 — 100 | page 2 — 200 | page 3 — 236
+  ✓ 236 articles saved (10 excluded by status filter)
+Extracting datasets... ✓ 26 datasets saved (9 excluded by status filter)
+Extracting apps... ✓ 13 apps saved (1 excluded by status filter)
 
-Verifying counts against Strapi 3 REST endpoints...
-  ✓ articles: 246 = 246 | ✓ datasets: 35 = 35 | ✓ apps: 14 = 14p
+Verifying counts against local filtered data...
+  ✓ articles: 236 = 236 | ✓ datasets: 26 = 26 | ✓ apps: 13 = 13
 
 === Verification ===
-  ✓ article mainfile refs: 203/203 valid (43 null)
-  ✓ article extrafile refs: 4/4 valid (242 null)
-  ✓ dataset datafile refs: 34/34 valid (1 null)
-  ✓ app image field: 14/14 have non-null image
+  ✓ article mainfile refs: 199/199 valid (37 null)
+  ✓ article extrafile refs: 4/4 valid (232 null)
+  ✓ dataset datafile refs: 26/26 valid (0 null)
+  ✓ app image field: 13/13 have non-null image
   All 26 checks passed ✓
 ```
 
@@ -383,15 +383,15 @@ node migration/scripts/03-verify.js               # verify everything
 <summary>Example CLI output</summary>
 
 ```console
-Scan complete: 1091 images (239 splash, 239 thumbnail, 599 inline, 14 app images)
-Decode complete: 1091 succeeded, 0 failed
-Upload complete: 1091 files processed
+Scan complete: 1058 images (236 splash, 236 thumbnail, 573 inline, 13 app images)
+Decode complete: 1058 succeeded, 0 failed
+Upload complete: 1058 files processed
 Post-rewrite scan: 0 Base64 remnants found ✓
 
-Phase 3e: Datasets 35 | Articles 246 updated | Apps 14 | Media map: 1331 entries
+Phase 3e: Datasets 26 | Articles 236 updated | Apps 13 | Media map: 1287 entries
 
 === Verification ===
-  ✓ Splash parity: 239/239 | Thumbnail: 239/239 | Mainfile: 203/203
+  ✓ Splash parity: 236/236 | Thumbnail: 236/236 | Mainfile: 199/199
   ✓ Zero data:image/ substrings in transformed markdown
   All 36 checks passed ✓
 ```
@@ -419,18 +419,18 @@ node migration/scripts/04-verify.js                    # Step 5: verify everythi
 <summary>Example CLI output</summary>
 
 ```console
-Loading datasets: 35/35 ✓ | Loading apps: 14/14 ✓ | Loading articles: 246/246 ✓
-Linking relations: 246 articles + 14 apps processed
-Timestamp restoration: 295 records updated
+Loading datasets: 26/26 ✓ | Loading apps: 13/13 ✓ | Loading articles: 236/236 ✓
+Linking relations: 236 articles + 13 apps processed
+Timestamp restoration: 275 records updated
   ✓ article.article: mainField legacyId → title
   ✓ dataset.dataset: mainField legacyId → title
   ✓ app.app: mainField legacyId → title
 
 === Verification ===
-  [PASS] 246 articles, 35 datasets, 14 apps — counts match
+  [PASS] 236 articles, 26 datasets, 13 apps — counts match
   [PASS] No duplicate legacyIds
   [PASS] All relations correct | All timestamps historic | All media set
-  All 21 checks passed ✓
+  All 25 checks passed ✓
 ```
 
 </details>
@@ -454,15 +454,15 @@ node migration/scripts/05-validate.js
 ║  ResearchHub Migration Validation ║
 ╚═══════════════════════════════════╝
 
-  ✓ Record counts ................. PASS (246 articles, 35 datasets, 14 apps)
-  ✓ Legacy ID coverage ............ PASS (295/295 mapped)
+  ✓ Record counts ................. PASS (236 articles, 26 datasets, 13 apps)
+  ✓ Legacy ID coverage ............ PASS (275/275 mapped)
   ✓ Zero Base64 remnants .......... PASS (0 found)
-  ✓ Image/media migration ......... PASS (splash 239, thumbnail 239, mainfile 203, extrafile 4, app 14)
-  ✓ Dataset file migration ........ PASS (34/34)
-  ✓ Media accessibility ........... PASS (1331/1331)
+  ✓ Image/media migration ......... PASS (splash 236, thumbnail 236, mainfile 199, extrafile 4, app 13)
+  ✓ Dataset file migration ........ PASS (26/26)
+  ✓ Media accessibility ........... PASS (1287/1287)
   ✓ Relation integrity ............ PASS (all 3 m2m sets correct)
-  ✓ Timestamp preservation ........ PASS (295/295)
-  ✓ Content integrity ............. PASS (25/25 spot checks)
+  ✓ Timestamp preservation ........ PASS (275/275)
+  ✓ Content integrity ............. PASS (24/24 spot checks)
   ✓ No duplicates ................. PASS (0 duplicates)
 
   Result: 10/10 checks passed — MIGRATION VALIDATED ✓
@@ -485,21 +485,21 @@ node migration/scripts/06-audit.js
 <summary>Example CLI output</summary>
 
 ```console
-Auditing articles: 246/246 | datasets: 35/35 | apps: 14/14
+Auditing articles: 236/236 | datasets: 26/26 | apps: 13/13
 
-Media audit: 1331 accessible, 0 inaccessible
+Media audit: 1287 accessible, 0 inaccessible
 
 ╔═════════════════════════════════════╗
 ║  Parity Audit — Summary             ║
 ╚═════════════════════════════════════╝
 
-  Records compared:    295
-  Fields compared:     6,877
+  Records compared:    275
+  Fields compared:     6,431
 
   ERROR:     0
-  EXPECTED:  1,315
+  EXPECTED:  1,563
   INFO:      6
-  OK:        5,571
+  OK:        4,877
 
   RESULT: 0 ERROR(s) — migration verified ✓
 ```
@@ -587,9 +587,9 @@ Compares all records by `legacyId`, automatically loads new records, flags updat
 
 ### Phase 2: Data Extraction
 
-- [ ] Extract ~246 articles with all fields, relations, and media references
-- [ ] Extract ~35 datasets with all fields and datafile media references
-- [ ] Extract ~14 apps with all fields, image, and relations
+- [ ] Extract 236 articles with all fields, relations, and media references
+- [ ] Extract 26 datasets with all fields and datafile media references
+- [ ] Extract 13 apps with all fields, image, and relations
 - [ ] Verify counts against Strapi 3 REST endpoints
 - [ ] Validate ObjectId format, timestamps, relation arrays, media refs
 
@@ -597,7 +597,7 @@ Compares all records by `legacyId`, automatically loads new records, flags updat
 
 - [ ] Scan articles: splash, thumbnail, images (JSON), markdown inline, HTML fallback
 - [ ] Scan apps: image field
-- [ ] Decode ~1,091 Base64 images to binary files with magic byte validation
+- [ ] Decode ~1,058 Base64 images to binary files with magic byte validation
 - [ ] Upload all files to Strapi 5 media library (idempotent)
 - [ ] Download and re-upload mainfile/extrafile (articles) and datafile (datasets)
 - [ ] Rewrite article markdown: Base64 → `/uploads/` URLs
@@ -607,7 +607,7 @@ Compares all records by `legacyId`, automatically loads new records, flags updat
 
 ### Phase 4: Data Loading & Timestamp Restoration
 
-- [ ] Load datasets (35) → apps (14) → articles (246) in dependency order
+- [ ] Load datasets (26) → apps (13) → articles (236) in dependency order
 - [ ] Check `legacyId` for duplicates before each POST (idempotent)
 - [ ] Link article → datasets (article dominant)
 - [ ] Link app → articles + app → datasets (app dominant for both)

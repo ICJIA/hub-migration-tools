@@ -9,6 +9,21 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [4.0.1] - 2026-03-16
+
+### Fixed
+- README: all example CLI output now reflects actual status-filtered migration counts
+  (236 articles, 26 datasets, 13 apps) instead of stale unfiltered Strapi 3 totals
+  (246/35/14). Affected sections: relation graph, Phase 2–6 CLI output examples,
+  migration checklist
+- README: Phase 3 media counts corrected (1,058 Base64 images, 1,287 total media)
+- README: Phase 4 verify check count corrected from 21 to 25
+- README: Phase 5 mainfile count corrected from 203 to 199, datafile from 34 to 26,
+  media accessibility from 1,331 to 1,287, spot checks from 25 to 24
+- README: Phase 6 audit totals corrected (275 records, 6,431 fields, 1,563 EXPECTED,
+  4,877 OK)
+- CHANGELOG v2.3.0: results section updated with correct post-filtering counts
+
 ## [4.0.0] - 2026-03-16
 
 ### Added
@@ -166,10 +181,10 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 ### Results
 - Local migration completed successfully against production Strapi 3
   (researchhub.icjia-api.cloud) and local Strapi 5 (localhost:1338):
-  - 295 records (246 articles, 35 datasets, 14 apps)
-  - 1,331 media files (239 splash, 239 thumbnail, 613 inline, 14 app images, 241 upload-plugin files)
+  - 275 records (236 articles, 26 datasets, 13 apps) after status filtering
+  - 1,287 media files (236 splash, 236 thumbnail, 573 inline, 13 app images, 229 upload-plugin files)
   - Phase 5: 10/10 validation checks passed
-  - Phase 6: 0 ERRORs, 1,315 EXPECTED, 6 INFO, 5,571 OK across 6,877 fields
+  - Phase 6: 0 ERRORs, 1,563 EXPECTED, 6 INFO, 4,877 OK across 6,431 fields
 
 ## [2.2.0] - 2026-03-15
 
