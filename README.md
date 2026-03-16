@@ -237,6 +237,7 @@ Your Mac                    Cloud
 2. Deploy configs are in [`deploy/`](deploy/):
    - [`nginx-strapi5.conf`](deploy/nginx-strapi5.conf) — Nginx reverse proxy (port 1337 → HTTPS, 200MB upload limit)
    - [`ecosystem.config.cjs`](deploy/ecosystem.config.cjs) — PM2 process manager config
+   - [`restart.sh`](deploy/restart.sh) — pulls latest, optional rebuild, restarts PM2, health check
 
 **Run the production migration** (from your Mac):
 

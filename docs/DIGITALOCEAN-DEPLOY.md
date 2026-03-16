@@ -244,6 +244,29 @@ pnpm sync
 
 ## Stopping / Restarting Strapi 5
 
+**Quick restart with the deploy script** (recommended):
+
+```bash
+ssh forge@your-droplet-ip
+cd /home/forge/v2.hub.icjia-api.cloud/v2hub
+bash restart.sh
+```
+
+This script:
+1. Pulls latest from git
+2. Asks if you need to rebuild (default No — only say Yes after schema/plugin changes)
+3. Restarts PM2
+4. Shows PM2 status
+5. Runs a health check against localhost:1337
+
+**First-time setup** — copy the script from the migration project:
+
+```bash
+scp deploy/restart.sh forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/v2hub/
+```
+
+**Manual PM2 commands:**
+
 ```bash
 ssh forge@your-droplet-ip
 pm2 stop strapi5-researchhub      # stop
