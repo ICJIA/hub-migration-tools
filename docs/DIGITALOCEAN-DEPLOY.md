@@ -286,3 +286,107 @@ rm /home/forge/v2.hub.icjia-api.cloud/v2hub/.tmp/data.db
 pm2 start strapi5-researchhub
 # Create new admin user + API token, then re-run migration from local machine
 ```
+
+## Troubleshooting: Nginx + Strapi 5
+
+### 403 Forbidden on `/admin/.strapi/client/app.js`
+
+**Symptom:** The admin page loads (200) but shows a blank white screen. Browser console shows `403 Forbidden` on `app.js`.
+
+**Cause:** Nginx has a dotfile deny rule that blocks paths containing `.strapi/`:
+
+```nginx
+# THIS is the problem — it blocks /.strapi/ paths
+location ~ /\.(?!well-known).* {
+    deny all;
+}
+```
+
+Forge adds this rule by default to protect `.env`, `.git`, etc. But Strapi 5 serves admin panel assets from `/.strapi/client/`, which gets caught by this rule.
+
+**Fix:** Remove the dotfile deny rule entirely from the Nginx config. Strapi handles its own security — it doesn't expose `.env` or `.git` through its HTTP server. The deny rule is a PHP/static-site convention that doesn't apply to Strapi.
+
+**How to verify:** Test from the server to isolate whether Strapi or Nginx is the problem:
+
+```bash
+# Direct to Strapi (bypass Nginx) — should return 200
+curl -I http://127.0.0.1:1337/admin/.strapi/client/app.js
+
+# Through Nginx — if this returns 403, Nginx is blocking it
+curl -I https://v2.hub.icjia-api.cloud/admin/.strapi/client/app.js
+```
+
+### Laravel Forge: Where to edit Nginx config
+
+Forge does NOT use `/etc/nginx/sites-available/` in the standard way. The config structure is:
+
+```
+/etc/nginx/sites-enabled/v2.hub.icjia-api.cloud     ← the main site file (includes site.conf)
+/etc/nginx/forge-conf/{site-id}/site.conf            ← THIS is where your proxy config goes
+/etc/nginx/forge-conf/{site-id}/server/*              ← additional server-level includes
+/etc/nginx/forge-conf/{site-id}/v2.hub.../before/*    ← SSL redirect
+/etc/nginx/forge-conf/{site-id}/v2.hub.../after/*     ← empty
+```
+
+Edit `site.conf` through the Forge dashboard (**Sites → your site → Nginx Configuration**) or directly:
+
+```bash
+sudo nano /etc/nginx/forge-conf/{site-id}/site.conf
+```
+
+The working config (tested):
+
+```nginx
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+ssl_prefer_server_ciphers off;
+ssl_dhparam /etc/nginx/dhparams.pem;
+
+add_header X-Frame-Options "SAMEORIGIN";
+add_header X-XSS-Protection "1; mode=block";
+add_header X-Content-Type-Options "nosniff";
+
+index index.html index.htm;
+charset utf-8;
+
+include forge-conf/{site-id}/server/*;
+
+location / {
+    proxy_pass http://127.0.0.1:1337;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_bypass $http_upgrade;
+
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+    client_max_body_size 200M;
+}
+
+location = /favicon.ico { access_log off; log_not_found off; }
+location = /favicon.svg { access_log off; log_not_found off; }
+location = /robots.txt  { access_log off; log_not_found off; }
+
+access_log off;
+error_log /var/log/nginx/{site-id}-error.log error;
+
+# NO dotfile deny rule — Strapi handles its own security
+```
+
+> **Key:** No `location ~ /\.` deny rule, no extra `}` braces, one clean `location /` proxy block.
+
+### Stray closing brace `}` breaks everything silently
+
+Forge's `site.conf` is included inside a `server {}` block. If you accidentally add an extra `}`, it closes the server block early. Everything after the stray brace is orphaned — location blocks stop working silently. Nginx `nginx -t` does NOT catch this. Always count your braces.
+
+### Vite "Blocked request" / host not allowed
+
+**Symptom:** `Blocked request. This host ("v2.hub.icjia-api.cloud") is not allowed.`
+
+**Cause:** Running Strapi in development mode (`NODE_ENV=development`) uses Vite's dev server, which blocks unknown hostnames behind a proxy.
+
+**Fix:** Run in production mode. Set `NODE_ENV: 'production'` in the PM2 ecosystem config and run `npm run build` before starting.

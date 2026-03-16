@@ -239,6 +239,8 @@ Your Mac                    Cloud
    - [`ecosystem.config.cjs`](deploy/ecosystem.config.cjs) — PM2 process manager config
    - [`restart.sh`](deploy/restart.sh) — pulls latest, optional rebuild, restarts PM2, health check
 
+> **Nginx gotcha:** Laravel Forge's default Nginx config includes a dotfile deny rule (`location ~ /\.`) that blocks Strapi 5's admin panel (served from `/.strapi/`). Remove it — Strapi handles its own security. See the [troubleshooting section](docs/DIGITALOCEAN-DEPLOY.md#troubleshooting-nginx--strapi-5) in the DO deployment guide.
+
 **Run the production migration** (from your Mac):
 
 ```bash
