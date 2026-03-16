@@ -28,7 +28,7 @@ export default {
   },
 
   strapi3ProjectPath: '../strapi3-project',
-  strapi5ProjectPath: process.env.STRAPI5_PROJECT_PATH || '/home/forge/v2.hub.icjia-api.cloud',
+  strapi5ProjectPath: process.env.STRAPI5_PROJECT_PATH || '/home/forge/v2.hub.icjia-api.cloud/v2hub',
   contentTypes: ['article', 'dataset', 'app'],
 
   paths: {

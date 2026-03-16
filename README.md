@@ -271,7 +271,7 @@ cd /home/forge && git clone https://github.com/ICJIA/hub-cms-migration-2026.git
 cd hub-cms-migration-2026 && npm install
 
 # Run just the timestamp script
-export STRAPI5_DB_PATH="/home/forge/v2.hub.icjia-api.cloud/.tmp/data.db"
+export STRAPI5_DB_PATH="/home/forge/v2.hub.icjia-api.cloud/v2hub/.tmp/data.db"
 node migration/scripts/04c-fix-timestamps.js
 
 # Restart and exit

@@ -49,7 +49,7 @@ module.exports = {
   apps: [
     {
       name: 'strapi5-researchhub',
-      cwd: '/home/forge/v2.hub.icjia-api.cloud',
+      cwd: '/home/forge/v2.hub.icjia-api.cloud/v2hub',
       script: 'npm',
       args: 'start',
       env: {
@@ -147,13 +147,13 @@ curl https://v2.hub.icjia-api.cloud
 On your local machine, the schemas were already generated during local testing. Copy them to the server:
 
 ```bash
-scp -r migration/output/strapi5-schemas/* forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/src/api/
+scp -r migration/output/strapi5-schemas/* forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/v2hub/src/api/
 ```
 
 Then restart Strapi 5 on the server to pick up the schemas:
 
 ```bash
-ssh forge@your-droplet-ip "cd /home/forge/v2.hub.icjia-api.cloud && npm run build && pm2 restart strapi5-researchhub"
+ssh forge@your-droplet-ip "cd /home/forge/v2.hub.icjia-api.cloud/v2hub && npm run build && pm2 restart strapi5-researchhub"
 ```
 
 ## 6. Run the Production Migration
@@ -193,7 +193,7 @@ scp -r . forge@your-droplet-ip:/home/forge/hub-cms-migration-2026/
 ssh forge@your-droplet-ip
 cd /home/forge/hub-cms-migration-2026
 npm install    # need better-sqlite3 compiled on the server
-export STRAPI5_DB_PATH="/home/forge/v2.hub.icjia-api.cloud/.tmp/data.db"
+export STRAPI5_DB_PATH="/home/forge/v2.hub.icjia-api.cloud/v2hub/.tmp/data.db"
 pm2 stop strapi5-researchhub
 node migration/scripts/04c-fix-timestamps.js
 pm2 start strapi5-researchhub
@@ -206,13 +206,13 @@ pm2 start strapi5-researchhub
 ssh forge@your-droplet-ip "pm2 stop strapi5-researchhub"
 
 # Download
-scp forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/.tmp/data.db ./data.db.remote
+scp forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/v2hub/.tmp/data.db ./data.db.remote
 
 # Fix locally
 STRAPI5_DB_PATH=./data.db.remote node migration/scripts/04c-fix-timestamps.js
 
 # Upload back
-scp ./data.db.remote forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/.tmp/data.db
+scp ./data.db.remote forge@your-droplet-ip:/home/forge/v2.hub.icjia-api.cloud/v2hub/.tmp/data.db
 
 # Restart
 ssh forge@your-droplet-ip "pm2 start strapi5-researchhub"
@@ -259,7 +259,7 @@ If you need to start the production migration from scratch:
 ```bash
 ssh forge@your-droplet-ip
 pm2 stop strapi5-researchhub
-rm /home/forge/v2.hub.icjia-api.cloud/.tmp/data.db
+rm /home/forge/v2.hub.icjia-api.cloud/v2hub/.tmp/data.db
 pm2 start strapi5-researchhub
 # Create new admin user + API token, then re-run migration from local machine
 ```
