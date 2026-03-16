@@ -302,17 +302,35 @@ async function main() {
 
   const counts = {};
   const contentTypes = Object.keys(QUERIES);
+  const allowedStatuses = config.allowedStatuses || null;
+
+  if (allowedStatuses) {
+    console.log(`Status filter: only migrating records with status: ${allowedStatuses.map(s => `"${s}"`).join(', ')}`);
+    console.log(`Records with other statuses (drafts, pending approval) will be skipped.\n`);
+  }
 
   // Extract each content type
   for (const ct of contentTypes) {
     console.log(`Extracting ${ct}...`);
     try {
-      const records = await extractAll(ct, QUERIES[ct], client, limit);
+      let records = await extractAll(ct, QUERIES[ct], client, limit);
+      const totalExtracted = records.length;
+
+      // Filter by allowed statuses if configured
+      if (allowedStatuses && allowedStatuses.length > 0) {
+        const before = records.length;
+        records = records.filter((r) => allowedStatuses.includes(r.status));
+        const excluded = before - records.length;
+        if (excluded > 0) {
+          console.log(`  ${YELLOW}Filtered: ${excluded} record(s) excluded (non-${allowedStatuses.join('/')} status)${RESET}`);
+        }
+      }
+
       counts[ct] = records.length;
 
       const filePath = path.join(outputDir, `${ct}.json`);
       await fs.writeFile(filePath, JSON.stringify(records, null, 2));
-      console.log(`  ${GREEN}✓ ${records.length} ${ct} saved to ${path.relative(ROOT, filePath)}${RESET}\n`);
+      console.log(`  ${GREEN}✓ ${records.length} ${ct} saved to ${path.relative(ROOT, filePath)}${totalExtracted !== records.length ? ` (${totalExtracted} total, ${totalExtracted - records.length} filtered)` : ''}${RESET}\n`);
     } catch (err) {
       console.error(`\n${RED}ERROR extracting ${ct}: ${err.message}${RESET}`);
       console.error(`${RED}Fix the issue and re-run this script. Previously extracted content types are safe.${RESET}`);
@@ -340,6 +358,9 @@ async function main() {
     const restCount = await getRestCount(ct);
     if (restCount === null) {
       console.log(`  ${YELLOW}⚠ ${ct}: REST count endpoint unavailable — skipped${RESET}`);
+    } else if (allowedStatuses) {
+      // When filtering by status, extracted count will be <= REST total
+      console.log(`  ${GREEN}✓ ${ct}: ${counts[ct]} extracted (${restCount} total in Strapi 3, filtered by status: ${allowedStatuses.join('/')})${RESET}`);
     } else if (restCount === counts[ct]) {
       console.log(`  ${GREEN}✓ ${ct}: ${counts[ct]} extracted = ${restCount} in Strapi 3${RESET}`);
     } else {

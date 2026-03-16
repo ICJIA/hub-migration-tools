@@ -235,11 +235,16 @@ async function main() {
   console.log('');
 
   // 9. REST count verification
+  const allowedStatuses = config.allowedStatuses || null;
   console.log('Checking Strapi 3 REST count endpoints...');
   for (const ct of Object.keys(data)) {
     const restCount = await getRestCount(ct);
     if (restCount === null) {
       check(`${ct} REST count`, true, `${YELLOW}endpoint unavailable — skipped${RESET}`);
+    } else if (allowedStatuses) {
+      // When filtering by status, extracted count will be <= REST total — this is expected
+      check(`${ct} REST count`, data[ct].length <= restCount,
+        `extracted ${data[ct].length} (filtered by status: ${allowedStatuses.join('/')}) from ${restCount} total in Strapi 3`);
     } else {
       check(`${ct} REST count`, restCount === data[ct].length,
         `extracted ${data[ct].length}, REST says ${restCount}`);

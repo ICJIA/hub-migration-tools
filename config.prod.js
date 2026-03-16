@@ -43,6 +43,11 @@ export default {
     maps: './migration/data/maps',
   },
 
+  // Only migrate records with these statuses. Records with other statuses
+  // (e.g., "created", "submitted") are drafts/pending approval and will be
+  // migrated later once they are published in Strapi 3.
+  allowedStatuses: ['published', 'archived'],
+
   settings: {
     paginationLimit: 100,
     requestDelayMs: 200,       // Slightly slower for remote — respect the server

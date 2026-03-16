@@ -1,6 +1,6 @@
 {
   "name": "hub-cms-migration-2026",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.30.3",
@@ -8,6 +8,8 @@
     "node": ">=18"
   },
   "scripts": {
+    "migrate:full": "node migration/scripts/migrate-full.js",
+    "migrate:reset": "node migration/scripts/reset-remote.js",
     "migrate:clean": "node migration/scripts/00-clean.js",
     "migrate:phase01": "node migration/scripts/01-run-phase.js",
     "migrate:phase02": "node migration/scripts/02-run-phase.js",
@@ -21,12 +23,16 @@
     "generate": "node migration/scripts/01b-generate-schemas.js",
     "verify": "node migration/scripts/01c-verify-schemas.js",
     "validate": "node migration/scripts/05-validate.js",
+    "report": "node migration/scripts/07-generate-report.js",
     "sync": "node migration/scripts/07-sync.js",
+    "fix-timestamps": "node migration/scripts/04c-fix-timestamps-remote.js",
+    "fix-image-refs": "node migration/scripts/04d-fix-image-refs.js",
     "set-strapi5": "node migration/scripts/set-strapi5-url.js",
     "reset": "node migration/scripts/reset-strapi5.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.1"
+    "better-sqlite3": "^11.8.1",
+    "docx": "^9.6.1"
   },
   "devDependencies": {
     "eslint": "^10.0.3"

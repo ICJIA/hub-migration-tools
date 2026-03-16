@@ -9,6 +9,47 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [4.0.0] - 2026-03-16
+
+### Added
+- **Parity audit report generator** (`pnpm report`) — generates shareable HTML + DOCX reports
+  from Phase 5 and Phase 6 data, designed for non-technical stakeholders with plain-language
+  explanations, migration risk analysis, NoSQL-to-SQL considerations, and a glossary
+- **Remote timestamp fix** (`pnpm fix-timestamps` / `04c-fix-timestamps-remote.js`) — SSHs into
+  the remote server, stops Strapi 5, updates timestamps directly in SQLite, restarts automatically.
+  No manual SSH required
+- **Reference-style image fix** (`pnpm fix-image-refs` / `04d-fix-image-refs.js`) — converts
+  `![Fig1][Fig1]` markdown syntax to inline `![Fig1](url)` using uploaded media URLs
+- **Full reset command** (`pnpm migrate:reset`) — one command to wipe local data + remote DB/media,
+  redeploy schemas, rebuild, restart, and verify. Requires typing "RESET" to confirm
+- **Migration runbook** (`pnpm migrate:full`) — prints complete step-by-step commands with
+  config status, one-liner, and post-migration instructions
+- **Status filtering** (`allowedStatuses` config) — only migrates records with `published` or
+  `archived` status. Drafts and pending-approval records are excluded by default
+- Phase 4 now runs 5 steps automatically: load → link relations → fix timestamps (SSH) →
+  fix image refs → verify. No manual SSH or separate commands needed
+- Wait-for-ready check between timestamp fix restart and image refs step (prevents 502 errors)
+- Idempotency notes in all scripts — failure messages explain that re-running is safe
+
+### Changed
+- Phase 4 runner calls remote timestamp script instead of local SQLite version
+- Phase 5 validation: record count check compares against filtered local data (not raw S3 total)
+- Phase 5 validation: content integrity check treats longer markdown as expected (image URL inlining)
+- Phase 6 audit: `stripImageRefs` now handles reference-style images (`![alt][ref]`) and definitions
+- Phase 6 audit: `images` JSON field changes (Base64 → URL) classified as EXPECTED, not ERROR
+- Phase 6 audit: `updatedAt` newer in S5 classified as INFO (post-migration fix), not ERROR
+- Phase 6 audit: respects `allowedStatuses` filter when fetching Strapi 3 records
+- Phase 2 extraction: filters by `allowedStatuses` after fetch, shows filtered counts
+- Phase 2 verification: accounts for status filtering in REST count comparison
+- Report generator: validation checks now correctly map `check.check`/`check.status` fields
+- Report generator: match percentage uses total findings as denominator (fixes >100% bug)
+- `03d-rewrite-content.js`: converts reference-style images to inline during transform phase
+- README: updated record counts, added Phase 7, updated production commands, new reset flow
+
+### Removed
+- Sign-off section from generated reports (informational only, not a signature document)
+- Manual SSH requirement for production timestamp fix (now automated)
+
 ## [3.2.0] - 2026-03-15
 
 ### Added

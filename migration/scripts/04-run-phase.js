@@ -109,18 +109,19 @@ function printFailure(stepName, scriptPath, exitCode, hint) {
 async function main() {
   console.log('');
   console.log(`${BOLD}╔══════════════════════════════════════════════════════════╗${RESET}`);
-  console.log(`${BOLD}║       Phase 4: Data Loading & Timestamp Restoration     ║${RESET}`);
+  console.log(`${BOLD}║       Phase 4: Data Loading & Post-Processing           ║${RESET}`);
   console.log(`${BOLD}╚══════════════════════════════════════════════════════════╝${RESET}`);
   console.log('');
   console.log('This will run all Phase 4 steps in sequence:');
   console.log(`  ${CYAN}Step 1:${RESET} Load content into Strapi 5 (datasets, apps, articles)`);
   console.log(`  ${CYAN}Step 2:${RESET} Link many-to-many relations (relation triangle)`);
-  console.log(`  ${CYAN}Step 3:${RESET} Fix timestamps via SQLite (requires Strapi 5 stopped)`);
-  console.log(`  ${CYAN}Step 4:${RESET} Verify all Phase 4 output (requires Strapi 5 running)`);
+  console.log(`  ${CYAN}Step 3:${RESET} Fix timestamps via SSH (stops/restarts Strapi 5 automatically)`);
+  console.log(`  ${CYAN}Step 4:${RESET} Fix inline image references in article markdown`);
+  console.log(`  ${CYAN}Step 5:${RESET} Verify all Phase 4 output (requires Strapi 5 running)`);
   console.log('');
 
   // ── Step 1: Load Content ──────────────────────────────────────────
-  console.log(`${BOLD}── Step 1/4: Load Content ──${RESET}\n`);
+  console.log(`${BOLD}── Step 1/5: Load Content ──${RESET}\n`);
 
   const code1 = await runScript('migration/scripts/04-load.js');
   if (code1 !== 0) {
@@ -139,7 +140,7 @@ async function main() {
 
   // ── Step 2: Link Relations ────────────────────────────────────────
   const continue2 = await promptYesNo(
-    `${CYAN}Step 2/4: Link many-to-many relations (relation triangle).${RESET}\n` +
+    `${CYAN}Step 2/5: Link many-to-many relations (relation triangle).${RESET}\n` +
     'This links article->datasets, app->articles, and app->datasets.\n' +
     'Strapi 5 must still be running.\n' +
     'Continue? [Y/n] ',
@@ -149,7 +150,7 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`\n${BOLD}── Step 2/4: Link Relations ──${RESET}\n`);
+  console.log(`\n${BOLD}── Step 2/5: Link Relations ──${RESET}\n`);
 
   const code2 = await runScript('migration/scripts/04b-link-relations.js');
   if (code2 !== 0) {
@@ -166,26 +167,18 @@ async function main() {
   console.log(`\n${GREEN}Step 2 complete.${RESET}\n`);
 
   // ── Step 3: Fix Timestamps ────────────────────────────────────────
-  console.log(`${RED}${BOLD}╔══════════════════════════════════════════════════════════╗${RESET}`);
-  console.log(`${RED}${BOLD}║  ACTION REQUIRED: Stop Strapi 5 before continuing.      ║${RESET}`);
-  console.log(`${RED}${BOLD}║  The timestamp fix writes directly to the SQLite DB.     ║${RESET}`);
-  console.log(`${RED}${BOLD}╚══════════════════════════════════════════════════════════╝${RESET}`);
-  console.log('');
+  console.log(`${BOLD}── Step 3/5: Fix Timestamps (Remote via SSH) ──${RESET}\n`);
+  console.log(`${CYAN}This will SSH into the server, stop Strapi 5, update timestamps${RESET}`);
+  console.log(`${CYAN}directly in the SQLite database, and restart Strapi 5.${RESET}\n`);
 
-  await promptContinue(
-    `${YELLOW}Press Enter after stopping Strapi 5 to continue with timestamp restoration...${RESET}\n`,
-  );
-
-  console.log(`${BOLD}── Step 3/4: Fix Timestamps ──${RESET}\n`);
-
-  const code3 = await runScript('migration/scripts/04c-fix-timestamps.js');
+  const code3 = await runScript('migration/scripts/04c-fix-timestamps-remote.js');
   if (code3 !== 0) {
     printFailure(
       'Step 3 (Fix Timestamps)',
-      'migration/scripts/04c-fix-timestamps.js',
+      'migration/scripts/04c-fix-timestamps-remote.js',
       code3,
-      'Check that Strapi 5 is stopped and the SQLite DB path in config.js is correct.\n' +
-      '  Verify that better-sqlite3 is installed: pnpm add better-sqlite3\n' +
+      'Check SSH connectivity to the remote server.\n' +
+      '  Verify that Strapi 5 can be stopped/started via pm2.\n' +
       '  This script is idempotent — re-running overwrites timestamps with the same values.',
     );
     process.exit(1);
@@ -193,28 +186,67 @@ async function main() {
 
   console.log(`\n${GREEN}Step 3 complete.${RESET}\n`);
 
-  // ── Step 4: Verify ────────────────────────────────────────────────
-  console.log(`${YELLOW}${BOLD}╔══════════════════════════════════════════════════════════╗${RESET}`);
-  console.log(`${YELLOW}${BOLD}║  ACTION REQUIRED: Restart Strapi 5 before verifying.    ║${RESET}`);
-  console.log(`${YELLOW}${BOLD}╚══════════════════════════════════════════════════════════╝${RESET}`);
+  // ── Wait for Strapi 5 to be ready after restart ─────────────────
+  console.log(`${CYAN}Waiting for Strapi 5 to be ready after restart...${RESET}\n`);
+  const s5Url = config.strapi5.apiUrl;
+  const s5Token = config.strapi5.token;
+  for (let attempt = 1; attempt <= 30; attempt++) {
+    process.stdout.write(`  Attempt ${attempt}/30...`);
+    try {
+      const headers = {};
+      if (s5Token) headers['Authorization'] = `Bearer ${s5Token}`;
+      const res = await fetch(`${s5Url}/api/articles?pagination[pageSize]=1`, {
+        headers,
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        console.log(` ${GREEN}ready${RESET}`);
+        break;
+      }
+      console.log(` ${YELLOW}status ${res.status}${RESET}`);
+    } catch {
+      console.log(` not yet`);
+    }
+    if (attempt === 30) {
+      console.log(`\n${RED}Strapi 5 did not become ready in time. Check the server.${RESET}`);
+      console.log(`Once it's ready, resume with: ${CYAN}pnpm fix-image-refs${RESET}`);
+      process.exit(1);
+    }
+    await new Promise((r) => setTimeout(r, 5000));
+  }
   console.log('');
 
-  await promptContinue(
-    `${YELLOW}Press Enter after restarting Strapi 5 to continue with verification...${RESET}\n`,
-  );
+  // ── Step 4: Fix Image References ────────────────────────────────
+  console.log(`${BOLD}── Step 4/5: Fix Image References ──${RESET}\n`);
+  console.log(`${CYAN}Converting reference-style markdown images to inline URLs.${RESET}\n`);
 
-  console.log(`${BOLD}── Step 4/4: Verify ──${RESET}\n`);
-
-  const code4 = await runScript('migration/scripts/04-verify.js');
+  const code4 = await runScript('migration/scripts/04d-fix-image-refs.js');
   if (code4 !== 0) {
     printFailure(
-      'Step 4 (Verify)',
-      'migration/scripts/04-verify.js',
+      'Step 4 (Fix Image References)',
+      'migration/scripts/04d-fix-image-refs.js',
       code4,
+      'Check Strapi 5 connectivity and API token.\n' +
+      '  This script is idempotent — re-running is safe.',
+    );
+    process.exit(1);
+  }
+
+  console.log(`\n${GREEN}Step 4 complete.${RESET}\n`);
+
+  // ── Step 5: Verify ──────────────────────────────────────────────
+  console.log(`${BOLD}── Step 5/5: Verify ──${RESET}\n`);
+
+  const code5 = await runScript('migration/scripts/04-verify.js');
+  if (code5 !== 0) {
+    printFailure(
+      'Step 5 (Verify)',
+      'migration/scripts/04-verify.js',
+      code5,
       'Review the failed checks above.\n' +
       '  Count mismatch: re-run 04-load.js (idempotent).\n' +
       '  Missing relations: re-run 04b-link-relations.js.\n' +
-      '  Wrong timestamps: stop Strapi 5, re-run 04c-fix-timestamps.js, restart.\n' +
+      '  Wrong timestamps: re-run pnpm fix-timestamps (handles SSH automatically).\n' +
       '  Then re-run this verification: node migration/scripts/04-verify.js',
     );
     process.exit(1);

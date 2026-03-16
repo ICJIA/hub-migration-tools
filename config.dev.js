@@ -40,6 +40,9 @@ export default {
     maps: './migration/data/maps',
   },
 
+  // Only migrate records with these statuses. Set to null to migrate all.
+  allowedStatuses: ['published', 'archived'],
+
   settings: {
     paginationLimit: 100,
     requestDelayMs: 100,

@@ -336,7 +336,11 @@ async function readJSON(relativePath) {
  */
 export function stripImageRefs(text) {
   if (!text) return '';
-  return text.replace(/!\[[^\]]*\]\([^)]*\)/g, '').trim();
+  return text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')   // inline images: ![alt](url)
+    .replace(/!\[[^\]]*\]\[[^\]]*\]/g, '')   // reference-style images: ![alt][ref]
+    .replace(/^\[[^\]]+\]:\s*[^\n]+$/gm, '') // reference definitions: [ref]: url
+    .trim();
 }
 
 /**
@@ -687,6 +691,30 @@ function compareJSON(field, s3Value, s5Value) {
     return { category: 'OK', detail: 'Deep equal match' };
   }
 
+  // Special handling for the `images` field: during migration, Base64 src values
+  // are replaced with /uploads/ URLs. If the titles match and the only difference
+  // is the src field changing from Base64 to a URL, this is an expected change.
+  if (field === 'images' && Array.isArray(s3Norm) && Array.isArray(s5Norm)) {
+    if (s3Norm.length === s5Norm.length) {
+      const allExpected = s3Norm.every((s3Entry, idx) => {
+        const s5Entry = s5Norm[idx];
+        if (!s3Entry || !s5Entry) return false;
+        // Titles should match (case-insensitive)
+        const titlesMatch = (s3Entry.title || '').toLowerCase() === (s5Entry.title || '').toLowerCase();
+        // S3 src is Base64 or old URL, S5 src is /uploads/ URL or full URL
+        const srcChanged = s3Entry.src !== s5Entry.src;
+        const s5IsUrl = typeof s5Entry.src === 'string' && (s5Entry.src.includes('/uploads/') || s5Entry.src.startsWith('http'));
+        return titlesMatch && srcChanged && s5IsUrl;
+      });
+      if (allExpected) {
+        return {
+          category: 'EXPECTED',
+          detail: `images JSON: ${s3Norm.length} image(s) — src values updated from Base64/old format to media library URLs`,
+        };
+      }
+    }
+  }
+
   return {
     category: 'ERROR',
     detail: `JSON mismatch for ${field}`,
@@ -810,9 +838,25 @@ function compareTimestamp(field, s3Value, s5Value) {
     };
   }
 
-  const diff = Math.abs(new Date(s3Value).getTime() - new Date(s5Value).getTime());
+  const s3Time = new Date(s3Value).getTime();
+  const s5Time = new Date(s5Value).getTime();
+  const diff = Math.abs(s3Time - s5Time);
+
   if (diff <= 1000) {
     return { category: 'OK', detail: `Match (diff: ${diff}ms)` };
+  }
+
+  // For updatedAt: if S5 is newer than S3, this is expected — post-migration
+  // scripts (fix-image-refs, content updates) trigger Strapi 5 to refresh
+  // updatedAt. The original timestamp was restored but a subsequent API PUT
+  // overwrote it. This is normal and not data loss.
+  if (field === 'updatedAt' && s5Time > s3Time) {
+    return {
+      category: 'INFO',
+      detail: `${field} is newer in S5 by ${Math.round(diff / 1000)}s (expected — post-migration fix updated this record)`,
+      strapi3: s3Value,
+      strapi5: s5Value,
+    };
   }
 
   // Large diffs (>24h) likely mean the record was loaded after the timestamp fix
@@ -1210,6 +1254,11 @@ async function main() {
 
   console.log(`${BOLD}── Step 1: Fetching records from both systems ──${RESET}\n`);
 
+  const allowedStatuses = config.allowedStatuses || null;
+  if (allowedStatuses) {
+    console.log(`  Status filter active: only comparing records with status: ${allowedStatuses.map(s => `"${s}"`).join(', ')}\n`);
+  }
+
   const s3Records = {};
   const s5Records = {};
 
@@ -1217,6 +1266,17 @@ async function main() {
     // Strapi 3 via GraphQL
     console.log(`  Fetching ${ct} from Strapi 3 (GraphQL)...`);
     s3Records[ct] = await strapi3FetchAll(ct, query, client);
+    const totalFetched = s3Records[ct].length;
+
+    // Filter by allowed statuses if configured
+    if (allowedStatuses && allowedStatuses.length > 0) {
+      s3Records[ct] = s3Records[ct].filter((r) => allowedStatuses.includes(r.status));
+      const excluded = totalFetched - s3Records[ct].length;
+      if (excluded > 0) {
+        console.log(`    ${YELLOW}Filtered: ${excluded} non-${allowedStatuses.join('/')} record(s) excluded${RESET}`);
+      }
+    }
+
     console.log(`    ${GREEN}${s3Records[ct].length} records${RESET}`);
 
     if (DELAY_MS > 0) await sleep(DELAY_MS);

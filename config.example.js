@@ -101,6 +101,15 @@ export default {
   },
 
   /**
+   * Only migrate records with these statuses from Strapi 3.
+   * Strapi 3 uses a custom `status` field (not a built-in draft/publish toggle):
+   *   "created" = draft, "submitted" = pending approval, "published", "archived"
+   * Set to null to migrate all records regardless of status.
+   * @type {string[]|null}
+   */
+  allowedStatuses: ['published', 'archived'],
+
+  /**
    * Script behavior settings.
    */
   settings: {

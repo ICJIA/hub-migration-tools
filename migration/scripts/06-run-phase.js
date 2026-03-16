@@ -134,9 +134,10 @@ function printSuccess() {
   console.log(`  upload → media relations, inline image extraction, etc).`);
   console.log('');
   console.log(`${BOLD}Next steps:${RESET}`);
-  console.log(`  1. Review the markdown report for a human-readable summary`);
-  console.log(`  2. Archive both reports as migration sign-off documentation`);
-  console.log(`  3. Proceed with frontend cutover to Strapi 5`);
+  console.log(`  1. Generate shareable HTML + DOCX reports: ${CYAN}pnpm report${RESET}`);
+  console.log(`  2. Review the markdown report for a human-readable summary`);
+  console.log(`  3. Archive reports as migration sign-off documentation`);
+  console.log(`  4. Proceed with frontend cutover to Strapi 5`);
   console.log('');
 }
 

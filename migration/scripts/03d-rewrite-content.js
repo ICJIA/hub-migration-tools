@@ -194,6 +194,49 @@ async function main() {
       statusParts.push(`${htmlImages.length} html images ${GREEN}\u2713${RESET}`);
     }
 
+    // ── Reference-style images (images JSON field) ────────────────
+    // Articles use `![Figure 1][figure1]` in markdown with the actual image
+    // data stored in the `images` JSON field as [{title, src}, ...].
+    // The Base64 images were uploaded in 03c as `images-json` entries.
+    // Here we: (a) append [title]: url definitions to the markdown, and
+    // (b) rewrite the images JSON field to use URLs instead of Base64.
+    const imagesField = Array.isArray(article.images) ? article.images : [];
+    let rewrittenImages = article.images || null;
+
+    if (imagesField.length > 0) {
+      const titleToUrl = new Map();
+      const newImagesArr = [];
+
+      for (let j = 0; j < imagesField.length; j++) {
+        const imgEntry = imagesField[j];
+        const idx = String(j).padStart(3, '0');
+        // Try all common extensions — the scan uses the MIME type from the Base64 data
+        const entry = mediaMap[`${slug}-imgfield-${idx}.png`]
+          || mediaMap[`${slug}-imgfield-${idx}.jpg`]
+          || mediaMap[`${slug}-imgfield-${idx}.gif`]
+          || mediaMap[`${slug}-imgfield-${idx}.webp`];
+
+        if (entry && entry.strapi5Url) {
+          const title = imgEntry.title || `figure${j + 1}`;
+          titleToUrl.set(title.toLowerCase(), entry.strapi5Url);
+          newImagesArr.push({ title, src: entry.strapi5Url });
+        } else {
+          // No upload found — preserve original entry
+          newImagesArr.push(imgEntry);
+        }
+      }
+
+      if (titleToUrl.size > 0) {
+        // Replace reference-style images ![alt][ref] with inline ![alt](url)
+        markdown = markdown.replace(/!\[([^\]]*)\]\[([^\]]+)\]/g, (match, alt, ref) => {
+          const url = titleToUrl.get(ref.toLowerCase());
+          return url ? `![${alt}](${url})` : match;
+        });
+        rewrittenImages = newImagesArr;
+        statusParts.push(`${titleToUrl.size} image refs ${GREEN}\u2713${RESET}`);
+      }
+    }
+
     // ── Mainfile / Extrafile ──────────────────────────────────────
     // Preserve the raw media reference objects for 03e to download and re-upload.
     // 03e will replace these with integer media IDs.
@@ -230,7 +273,7 @@ async function main() {
       authors: article.authors || null,
       splash: splashValue,
       thumbnail: thumbnailValue,
-      images: article.images || null,
+      images: rewrittenImages,
       abstract: article.abstract || null,
       markdown,
       mainfiletype: article.mainfiletype || null,

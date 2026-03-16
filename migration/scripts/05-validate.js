@@ -157,9 +157,10 @@ async function checkRecordCounts() {
   const types = ['articles', 'datasets', 'apps'];
   const details = {};
   let allMatch = true;
+  const allowedStatuses = config.allowedStatuses || null;
 
   for (const t of types) {
-    // Strapi 3 count
+    // Strapi 3 count (total, unfiltered)
     let s3Count = null;
     try {
       const s3Url = `${config.strapi3.apiUrl}/${t}/count`;
@@ -178,10 +179,34 @@ async function checkRecordCounts() {
     const s5Json = await strapi5Get(`/api/${t}?pagination[pageSize]=1`);
     const s5Count = s5Json.meta?.pagination?.total ?? null;
 
-    const match = s3Count !== null && s5Count !== null && s3Count === s5Count;
+    // When filtering by status, S5 will have fewer records than S3 total.
+    // Compare S5 count against the local extracted data (which was already filtered).
+    let match;
+    let expectedCount = s3Count;
+
+    if (allowedStatuses) {
+      // Use local raw data count as the expected count (already filtered by status)
+      try {
+        const rawPath = path.resolve(ROOT, config.paths.rawData, `${t}.json`);
+        const rawData = JSON.parse(await fs.readFile(rawPath, 'utf8'));
+        expectedCount = rawData.length;
+        match = s5Count !== null && s5Count === expectedCount;
+      } catch {
+        match = false;
+      }
+    } else {
+      match = s3Count !== null && s5Count !== null && s3Count === s5Count;
+    }
+
     if (!match) allMatch = false;
 
-    details[t] = { strapi3: s3Count, strapi5: s5Count, match };
+    details[t] = {
+      strapi3: s3Count,
+      strapi5: s5Count,
+      expected: expectedCount,
+      match,
+      statusFiltered: !!allowedStatuses,
+    };
   }
 
   return {
@@ -841,6 +866,7 @@ async function checkContentIntegrity() {
     }
 
     const issues = [];
+    const expectedChanges = [];
 
     // Compare title
     if (s3Article.title !== s5Article.title) {
@@ -852,11 +878,16 @@ async function checkContentIntegrity() {
       issues.push(`slug mismatch: "${s3Article.slug}" vs "${s5Article.slug}"`);
     }
 
-    // Compare markdown length (Strapi 5 should be <= Strapi 3 due to Base64 → URL)
+    // Compare markdown length
+    // Markdown may be LONGER in Strapi 5 because reference-style images like
+    // ![Fig1][Fig1] were converted to inline images with full URLs like
+    // ![Fig1](https://v2.hub.icjia-api.cloud/uploads/long-filename.png).
+    // This is expected and not a data integrity issue.
     const s3Len = (s3Article.markdown || '').length;
     const s5Len = (s5Article.markdown || '').length;
     if (s5Len > s3Len && s3Len > 0) {
-      issues.push(`markdown longer in Strapi 5: ${s5Len} > ${s3Len}`);
+      // Expected: image URL inlining makes markdown longer — record as info, not failure
+      expectedChanges.push(`markdown longer in Strapi 5: ${s5Len} > ${s3Len} (expected — image URLs inlined)`);
     }
 
     if (issues.length > 0) {
@@ -868,6 +899,7 @@ async function checkContentIntegrity() {
         title: s3Article.title,
         markdownLenS3: s3Len,
         markdownLenS5: s5Len,
+        expectedChanges: expectedChanges.length > 0 ? expectedChanges : undefined,
       });
     }
   }
@@ -879,6 +911,7 @@ async function checkContentIntegrity() {
       sampleSize,
       passed: checked.length,
       failed: failures.length,
+      expectedChanges: checked.filter((r) => r.expectedChanges).length,
       checkedRecords: checked.slice(0, 10),
       failures: failures.slice(0, 20),
     },
@@ -1053,7 +1086,7 @@ function printSummary(results) {
         summary = `(${d.matches ?? '?'}/${d.recordsChecked ?? '?'} match)`;
         break;
       case 'content_integrity':
-        summary = `(${d.passed ?? '?'}/${d.sampleSize ?? '?'} spot checks passed)`;
+        summary = `(${d.passed ?? '?'}/${d.sampleSize ?? '?'} spot checks passed${d.expectedChanges ? `, ${d.expectedChanges} with expected changes` : ''})`;
         break;
       case 'no_duplicates': {
         const totalDups = ['articles', 'datasets', 'apps']
@@ -1072,6 +1105,11 @@ function printSummary(results) {
       for (const line of failDetails) {
         console.log(`    ${RED}→ ${line}${RESET}`);
       }
+    }
+
+    // Print expected changes as informational notes (not errors)
+    if (r.check === 'content_integrity' && r.status === 'PASS' && r.details.expectedChanges > 0) {
+      console.log(`    ${CYAN}ℹ ${r.details.expectedChanges} record(s) have longer markdown due to image URL inlining — this is expected${RESET}`);
     }
   }
 
@@ -1104,7 +1142,11 @@ function getFailureDetails(result) {
     case 'record_counts':
       for (const t of ['articles', 'datasets', 'apps']) {
         if (d[t] && !d[t].match) {
-          lines.push(`${t}: Strapi 3 = ${d[t].strapi3}, Strapi 5 = ${d[t].strapi5}`);
+          if (d[t].statusFiltered) {
+            lines.push(`${t}: expected ${d[t].expected} (filtered), Strapi 5 = ${d[t].strapi5}, Strapi 3 total = ${d[t].strapi3}`);
+          } else {
+            lines.push(`${t}: Strapi 3 = ${d[t].strapi3}, Strapi 5 = ${d[t].strapi5}`);
+          }
         }
       }
       break;

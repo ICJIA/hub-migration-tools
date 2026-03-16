@@ -7,7 +7,7 @@ A complete, automated migration tool for converting a legacy Strapi 3 (MongoDB) 
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 3.2.0 ([Changelog](CHANGELOG.md))
+**Version:** 4.0.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -35,9 +35,11 @@ ResearchHub is ICJIA's platform for publishing research articles, datasets, and 
 
 | Content Type | Count | Key Challenges |
 |---|---|---|
-| Articles | ~246 | `splash` + `thumbnail` (Base64 images), inline images in `markdown`, `mainfile`/`extrafile` (upload plugin), 2 m2m relations |
-| Datasets | ~35 | `datafile` (upload plugin), multiple JSON metadata fields, 2 m2m relations |
-| Apps | ~14 | `image` (Base64), 2 dominant m2m relations to articles and datasets |
+| Articles | ~236 | `splash` + `thumbnail` (Base64 images), inline/reference-style images in `markdown`, `mainfile`/`extrafile` (upload plugin), 2 m2m relations |
+| Datasets | ~26 | `datafile` (upload plugin), multiple JSON metadata fields, 2 m2m relations |
+| Apps | ~13 | `image` (Base64), 2 dominant m2m relations to articles and datasets |
+
+> **Note:** Only records with `published` or `archived` status are migrated. Draft and pending-approval records are excluded and can be migrated individually once published. See `allowedStatuses` in config.
 
 ### Relation graph
 
@@ -61,9 +63,10 @@ graph LR
 | 1. Schema Setup | `pnpm migrate:phase01` | Reads Strapi 3 schemas, generates Strapi 5 content types, verifies |
 | 2. Data Extraction | `pnpm migrate:phase02` | Pulls all content from Strapi 3 via GraphQL into local JSON files |
 | 3. Media Migration | `pnpm migrate:phase03` | Extracts Base64 images, uploads media, rewrites content references |
-| 4. Content Loading | `pnpm migrate:phase04` | Loads content into Strapi 5, links relation triangle, restores timestamps |
+| 4. Content Loading | `pnpm migrate:phase04` | Loads content, links relations, fixes timestamps (SSH), fixes image references |
 | 5. Validation | `pnpm migrate:phase05` | 10 automated pass/fail checks comparing Strapi 3 and Strapi 5 |
 | 6. Parity Audit | `pnpm migrate:phase06` | Field-by-field comparison of every record; detailed audit report |
+| 7. Reports | `pnpm report` | Generates shareable HTML + DOCX migration parity reports |
 
 **Estimated effort:** 8–12 working days (single developer, sequential phases).
 
@@ -75,7 +78,8 @@ graph LR
     P2 --> P3[Phase 3<br/>Media]
     P3 --> P4[Phase 4<br/>Load]
     P4 --> P5[Phase 5<br/>Validate]
-    P5 --> P6[Phase 6<br/>Audit]
+    P5 --> P6[Phase 6<br/>Parity Audit]
+    P6 --> P7[Phase 7<br/>Reports]
 
     style P1 fill:#4a90d9,stroke:#2c5f8a,color:#fff
     style P2 fill:#4a90d9,stroke:#2c5f8a,color:#fff
@@ -83,6 +87,7 @@ graph LR
     style P4 fill:#e8a838,stroke:#b07a1a,color:#fff
     style P5 fill:#50b87a,stroke:#2d7a4d,color:#fff
     style P6 fill:#50b87a,stroke:#2d7a4d,color:#fff
+    style P7 fill:#50b87a,stroke:#2d7a4d,color:#fff
 ```
 
 ### Deployment architecture
@@ -187,18 +192,21 @@ pnpm set-strapi5    # prompts for URL and token, tests connectivity
 
 Or manually: `cp config.dev.js config.js` and paste the token into `strapi5.token`.
 
-### Step 5–10: Run all phases
+### Step 5–11: Run all phases
 
 ```bash
 pnpm migrate:phase01    # Schema setup (reads S3 schemas, generates S5 types, verifies)
 pnpm migrate:phase02    # Data extraction (pulls all content from S3 into local JSON)
 pnpm migrate:phase03    # Media migration (Base64 extraction, upload, content rewrite)
-pnpm migrate:phase04    # Content loading (load → link relations → fix timestamps)
+pnpm migrate:phase04    # Content loading (load → link relations → fix timestamps → fix image refs)
 pnpm migrate:phase05    # Validation (10 automated checks)
 pnpm migrate:phase06    # Parity audit (field-by-field comparison, audit report)
+pnpm report             # Generate HTML + DOCX parity audit reports
 ```
 
-Each phase is interactive — prompts between steps, explains what's needed, and gives recovery instructions if anything fails. You can pause and resume at any point.
+Each phase is **idempotent** — if any phase fails (timeout, network glitch), just re-run it. It detects previously completed work and picks up where it left off. No data will be duplicated.
+
+To see the full runbook with a one-liner: `pnpm migrate:full`
 
 ### Step 11: Manual QA
 
@@ -227,9 +235,9 @@ Your Mac                    Cloud
 
 | Where | What runs | Why |
 |---|---|---|
-| **Your Mac** | All migration scripts (Phases 1–6) | Orchestrates the entire migration over HTTPS |
+| **Your Mac** | All migration scripts (Phases 1–7) | Orchestrates the entire migration over HTTPS |
 | **DO server** | Strapi 5 via PM2 | Just serves the API — receives content from your Mac |
-| **DO server (SSH)** | Only Phase 4c timestamp fix | Needs direct SQLite file access (one-time, 30 seconds) |
+| **DO server (SSH)** | Phase 4c timestamp fix (automated) | The script SSHs in automatically — no manual login needed |
 
 **Setup the DO server** (one time):
 
@@ -246,45 +254,27 @@ Your Mac                    Cloud
 ```bash
 # Point at production
 cp config.prod.js config.js
-pnpm set-strapi5
-# URL: https://v2.hub.icjia-api.cloud
-# Token: (your production API token)
+export STRAPI5_TOKEN="<your-production-token>"
 
-# Clean local test data
-pnpm migrate:clean
+# Full reset (wipes remote DB + media, redeploys schemas)
+pnpm migrate:reset      # type "RESET" to confirm
 
-# Run all phases from your Mac — they talk to the DO server over HTTPS
-pnpm migrate:phase01    # verify schemas on remote S5
+# Create admin account + API token at https://v2.hub.icjia-api.cloud/admin
+export STRAPI5_TOKEN="<new-token>"
+
+# Run all phases — see runbook for one-liner
+pnpm migrate:full
+
+# Or run individually:
 pnpm migrate:phase02    # extract from remote S3
 pnpm migrate:phase03    # upload media TO remote S5
-pnpm migrate:phase04    # load content TO remote S5 (pauses at 4c — see below)
+pnpm migrate:phase04    # load content, timestamps (SSH), image refs — all automated
 pnpm migrate:phase05    # validate both remote servers
 pnpm migrate:phase06    # parity audit across both remote servers
+pnpm report             # generate HTML + DOCX parity audit reports
 ```
 
-**Phase 4c (timestamp fix) — the one SSH step:**
-
-```bash
-# SSH into the DO server
-ssh forge@your-droplet-ip
-pm2 stop strapi5-researchhub
-
-# Clone migration repo on server (if not already there)
-cd /home/forge && git clone https://github.com/ICJIA/hub-cms-migration-2026.git
-cd hub-cms-migration-2026 && npm install
-
-# Run just the timestamp script
-export STRAPI5_DB_PATH="/home/forge/v2.hub.icjia-api.cloud/v2hub/.tmp/data.db"
-node migration/scripts/04c-fix-timestamps.js
-
-# Restart and exit
-pm2 start strapi5-researchhub
-exit
-
-# Back on your Mac — continue with phases 5 and 6
-pnpm migrate:phase05
-pnpm migrate:phase06
-```
+All steps run from your Mac over HTTPS. The timestamp fix (Phase 4, Step 3) automatically SSHs into the server, stops Strapi 5, updates the database, and restarts — no manual SSH required.
 
 ---
 
@@ -408,20 +398,21 @@ Phase 3e: Datasets 35 | Articles 246 updated | Apps 14 | Media map: 1331 entries
 
 </details>
 
-### Phase 4: Data Loading & Timestamp Restoration
+### Phase 4: Data Loading & Post-Processing
 
-Loads content in dependency order (datasets → apps → articles), links the relation triangle, restores original timestamps via SQLite, auto-configures admin display settings.
+Loads content in dependency order (datasets → apps → articles), links the relation triangle, restores original timestamps via SSH, converts reference-style markdown images to inline URLs, and verifies everything.
 
-> **Production note:** Steps 4a–4b and 4d run from your Mac over HTTPS. Step 4c (timestamp fix) requires direct SQLite access — for production, SSH into the DO server to run it. See the [production deployment section](#when-ready-for-production) above.
+All 5 steps run automatically from your Mac — including the SSH-based timestamp fix.
 
 ```bash
 pnpm migrate:phase04
 
 # Or individually:
-node migration/scripts/04-load.js                # load content (runs from your Mac)
-node migration/scripts/04b-link-relations.js      # link relation triangle (runs from your Mac)
-node migration/scripts/04c-fix-timestamps.js      # restore timestamps (local: stop S5 first; production: SSH)
-node migration/scripts/04-verify.js               # verify everything (runs from your Mac)
+node migration/scripts/04-load.js                     # Step 1: load content
+node migration/scripts/04b-link-relations.js           # Step 2: link relation triangle
+node migration/scripts/04c-fix-timestamps-remote.js    # Step 3: restore timestamps (SSH, auto stop/restart)
+node migration/scripts/04d-fix-image-refs.js           # Step 4: convert reference-style images to inline URLs
+node migration/scripts/04-verify.js                    # Step 5: verify everything
 ```
 
 <details>
@@ -515,6 +506,18 @@ Media audit: 1331 accessible, 0 inaccessible
 
 </details>
 
+### Phase 7: Parity Audit Reports
+
+Generates shareable HTML and DOCX parity audit reports from the Phase 5 and Phase 6 data. Designed for non-technical stakeholders — includes plain-language explanations of why the audit matters, NoSQL-to-SQL migration risks, and a glossary.
+
+```bash
+pnpm report
+```
+
+**Outputs:**
+- `migration/data/migration-report.html` — self-contained HTML, viewable in any browser
+- `migration/data/migration-report.docx` — Word document for emailing to managers
+
 ---
 
 ## Configuration
@@ -539,19 +542,19 @@ Every script prints its configuration at startup. See [`config.example.js`](conf
 ## Resetting & Starting Over
 
 ```bash
-# Wipe migration data only (keep Strapi 5 database)
+# Wipe local migration data only (keep Strapi 5 database)
 pnpm migrate:clean
 
-# Full reset (start from scratch)
-# 1. Stop Strapi 5 (Ctrl+C)
-rm /path/to/strapi5-project/.tmp/data.db   # delete the database
-pnpm migrate:clean                          # clean migration data
-# 2. Restart Strapi 5 (npm run develop) — recreates DB from existing schema files
-# 3. Create new admin user + API token
-# 4. Run all phases again
+# Full reset — local data + remote Strapi 5 database + media (production)
+pnpm migrate:reset      # type "RESET" to confirm
+# → Cleans local data, wipes remote DB + uploads, redeploys schemas, rebuilds, restarts
+# → Then create admin account + API token and run: pnpm migrate:full
+
+# Show the full runbook with copy-paste commands
+pnpm migrate:full
 ```
 
-This is safe and expected — the migration is designed for repeated runs.
+**Every phase is idempotent.** If a phase fails (timeout, network glitch), just re-run it — no need to reset. Only use `migrate:reset` to start completely from scratch.
 
 ---
 
