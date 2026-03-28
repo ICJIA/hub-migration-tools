@@ -1,6 +1,6 @@
 {
   "name": "hub-cms-migration-2026",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.30.3",
@@ -27,6 +27,7 @@
     "sync": "node migration/scripts/07-sync.js",
     "fix-timestamps": "node migration/scripts/04c-fix-timestamps-remote.js",
     "fix-image-refs": "node migration/scripts/04d-fix-image-refs.js",
+    "fix-tables": "node migration/scripts/fix-tables.js",
     "set-strapi5": "node migration/scripts/set-strapi5-url.js",
     "reset": "node migration/scripts/reset-strapi5.js"
   },
@@ -35,6 +36,7 @@
     "docx": "^9.6.1"
   },
   "devDependencies": {
-    "eslint": "^10.0.3"
+    "eslint": "^10.0.3",
+    "markdown-it": "^14.1.1"
   }
 }

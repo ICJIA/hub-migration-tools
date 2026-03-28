@@ -9,6 +9,26 @@ This project uses [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH 
 
 ---
 
+## [4.1.0] - 2026-03-28
+
+### Added
+- **Markdown table fixer** (`pnpm fix-tables` / `migration/scripts/fix-tables.js`) — scans all
+  articles in Strapi 5 for malformed markdown tables and reformats them. Fixes missing
+  trailing/leading pipes, tabs mixed with spaces, wrong separator column counts, inconsistent
+  cell padding, and missing blank lines after tables (which causes notes/sources to be
+  swallowed as table rows)
+- `markdown-it` dev dependency for render-based table validation
+- `--dry-run` mode (default): identifies broken tables, shows before/after diff, validates
+  each reformatted table by rendering through markdown-it and confirming it produces a
+  correct `<table>` with the expected column/row counts
+- `--fix` mode: applies validated fixes via PUT to the Strapi 5 REST API
+
+### Results
+- 22 articles with 102 tables had formatting issues (927 individual problems)
+- All 22 articles fixed and validated — every table renders correctly through markdown-it
+- 34 missing blank lines after tables also fixed (prevents note text from being absorbed
+  into table rows)
+
 ## [4.0.1] - 2026-03-16
 
 ### Fixed

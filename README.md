@@ -7,7 +7,7 @@ A complete, automated migration tool for converting a legacy Strapi 3 (MongoDB) 
 **Project:** ResearchHub Content Migration
 **Team:** ICJIA Development Team
 **Date:** March 2026
-**Version:** 4.0.1 ([Changelog](CHANGELOG.md))
+**Version:** 4.1.0 ([Changelog](CHANGELOG.md))
 
 ---
 
@@ -18,6 +18,7 @@ A complete, automated migration tool for converting a legacy Strapi 3 (MongoDB) 
 - [Phase Details with CLI Output](#phase-details-with-cli-output)
 - [Configuration](#configuration)
 - [Resetting & Starting Over](#resetting--starting-over)
+- [Fix Markdown Tables](#fix-markdown-tables)
 - [Incremental Sync](#incremental-sync)
 - [Migration Checklist](#migration-checklist)
 - [Documentation](#documentation)
@@ -558,6 +559,22 @@ pnpm migrate:full
 
 ---
 
+## Fix Markdown Tables
+
+After migration, some articles may have malformed markdown tables (missing pipes, tabs, broken separators). This script scans all articles in Strapi 5 and fixes them:
+
+```bash
+# Preview: identify broken tables, show before/after, validate via markdown-it
+pnpm fix-tables --dry-run
+
+# Apply fixes via REST API (only tables that pass render validation are updated)
+pnpm fix-tables --fix
+```
+
+Issues fixed: missing trailing/leading pipes, tabs mixed with spaces, wrong separator column counts, inconsistent cell padding, and missing blank lines after tables. Every fix is validated by rendering through `markdown-it` to confirm it produces a correct `<table>`.
+
+---
+
 ## Incremental Sync
 
 If new content is added to Strapi 3 while Strapi 5 is in dev:
@@ -639,6 +656,8 @@ Compares all records by `legacyId`, automatically loads new records, flags updat
 
 ### Post-Migration
 
+- [ ] Run `pnpm fix-tables --dry-run` to identify malformed markdown tables
+- [ ] Run `pnpm fix-tables --fix` to apply validated table fixes
 - [ ] Manual QA in Strapi 5 admin panel
 - [ ] Share audit-report.md with stakeholders
 - [ ] Back up Strapi 5 SQLite database
